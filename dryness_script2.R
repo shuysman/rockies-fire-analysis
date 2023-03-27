@@ -595,22 +595,30 @@ for (n in 1:nrow(igsite)){
     ## igstatus_stack<-rbind(igstatus_att,igstatus_stack)
     ## names(igstatus_stack)
     
+################calculate 14 day rolling mean or sums####################################
+################k=?  is the number of days across which to summarize######################
+    ##ep1 <- endpoints(historic,on="days",k=14);ep1#build an index of windows over which you summarize
+    ##period_means<-rollapply(historic[,c("SVP","RD","VPD","Tavg","SOIL","GDD","AWSSM")], 14, mean, by = 1, by.column = TRUE);period_means[1:16,]#rolling values start at doy 14
+    period_means<-rollapply(wbxts[,c("RD","VPD","Tavg","SOIL","AWSSM")], 14, mean, by = 1, by.column = TRUE);period_means[1:16,]#rolling values start at doy 14
+    period_sums<-rollapply(wbxts[,c("RAIN","AET","D", "GDD")], 14, sum, by = 1, by.column = TRUE)
+    ## period_means<-period.apply(historic[,c("SVP","RH","VPD","TEMP","SOIL","GDD","AWSSM")],INDEX=ep1,FUN=colMeans);tail(period_means)#summarize on those windows
+    ## weekly_means<-apply.weekly(historic[,c("SVP","RH","VPD","TEMP","SOIL","GDD","AWSSM")],colMeans);head(weekly_means)
+    ## period_sums<-period.apply(historic[,c("RAIN","AET","D")],INDEX=ep1,FUN=colSums);tail(period_sums)
+    ## weekly_sums<-apply.weekly(historic[,c("RAIN","AET","D")],colSums);head(weekly_sums)
+    ## weekly_agg<-cbind(weekly_means,weekly_sums);head(weekly_agg)#;str(weekly_agg)#these are the weekly data across all weeks
+    period_agg<-cbind(period_means,period_sums);period_agg[10:20,]#values start at row 14 or what ever the rolling mean is set to thus NA's
+    ## write.csv(period_agg,"period_agg.csv")
     
     doy_min_max#start and end of fire seasons by day of year based on ignition dates for each veg type
     ## trees
     if(attributes$maj_class=="forest") {
         ##forests 
         ll <- seq(forest_end, forest_start, by = "-1 day");ll#find ig doy's in years before ignition
-        doy_ann<-wbxts[ll];head(doy_ann)
-        ##doy_ann<-wbxts[wbxts$doy %in% tree_range,];head(doy_ann);tail(doy_ann)#%in% operator used to specify elements in a vector
-        ##ann_index<-wbxts[ll];ann_index#ann_index<-ll[ll > st & ll < en];ann_index#xts dates in previous years
-        ##doy_ann<-rbind(wbxts[ig_date],doy_ann);head(doy_ann);tail(doy_ann)#append ig status conditions to fire year wb including all years of record
-        ##doy_ann1<-subset(doy_ann, maj_class="Tree ")
-        doy_ann_sub<-doy_ann[,c("year","month","day","RD","VPD","Tavg","SOIL","GDD","AWSSM","RAIN","AET","D")];head(doy_ann_sub)
-        f3<-as.Date(index(doy_ann_sub), format = "%Y-%m-%d");head(f3);length(f3)
+        doy_ann<-period_agg[ll];head(doy_ann)
+        f3<-as.Date(index(doy_ann), format = "%Y-%m-%d");head(f3);length(f3)
         ##compute percentile rank of each observation in the sequence of years 
-        rankthis_forest<-data.frame(date=index(doy_ann_sub), coredata(doy_ann_sub));head(rankthis_forest)
-        ranks<-apply(rankthis_forest[5:13],2,percent_rank)
+        rankthis_forest<-data.frame(date=index(doy_ann), coredata(doy_ann));head(rankthis_forest)
+        ranks<-apply(rankthis_forest[2:10],2,percent_rank)
         ranksxts<-xts(coredata(ranks),order.by=f3);head(ranksxts)#build xts data structure 
         
         ranksxts_ig<-cbind(ranksxts,0);head(ranksxts_ig)#add a column to hold indicator of ignition, where zero = no, 1 = ignition date
@@ -625,15 +633,11 @@ for (n in 1:nrow(igsite)){
     } else if(attributes$maj_class=="non-forest") {
         ##nonforests
         ll <- seq(nonforest_end, nonforest_start, by = "-1 day");ll#find ig doy's in years before ignition
-        doy_ann<-wbxts[ll];head(doy_ann)
-        ##doy_ann<-wbxts[wbxts$doy %in% nonforest_range,];head(doy_ann);tail(doy_ann)#%in% operator used to specify elements in a vector
-        ##doy_ann<-rbind(wbxts[ig_date],doy_ann);head(doy_ann);tail(doy_ann)#append ig status conditions to fire year wb including all years of record
-        ##doy_ann1<-subset(doy_ann, maj_class="nonforest ")
-        doy_ann_sub<-doy_ann[,c("year","month","day","RD","VPD","Tavg","SOIL","GDD","AWSSM","RAIN","AET","D")];head(doy_ann_sub)
-        f3<-as.Date(index(doy_ann_sub), format = "%Y-%m-%d");head(f3);length(f3)
+        doy_ann<-period_agg[ll];head(doy_ann)
+        f3<-as.Date(index(doy_ann), format = "%Y-%m-%d");head(f3);length(f3)
         ##compute percentile rank of each observation in the sequence of years before and including (last line) year of fire
-        rankthis_nonforest<-data.frame(date=index(doy_ann_sub), coredata(doy_ann_sub));head(rankthis_nonforest)
-        ranks<-apply(rankthis_nonforest[5:13],2,percent_rank)
+        rankthis_nonforest<-data.frame(date=index(doy_ann), coredata(doy_ann));head(rankthis_nonforest)
+        ranks<-apply(rankthis_nonforest[2:10],2,percent_rank)
         ranksxts<-xts(coredata(ranks),order.by=f3);head(ranksxts)#build xts data structure 
         
         ranksxts_ig<-cbind(ranksxts,0);head(ranksxts_ig)#add a column to hold indicator of ignition, where zero = no, 1 = ignition date
@@ -647,15 +651,11 @@ for (n in 1:nrow(igsite)){
     } else {
         ##shrubs
         ll <- seq(shrub_end, shrub_start, by = "-1 day");ll#find ig doy's in years before ignition
-        doy_ann<-wbxts[ll];head(doy_ann)
-        ##doy_ann<-wbxts[wbxts$doy %in% shrub_range,];head(doy_ann);tail(doy_ann)#%in% operator used to specify elements in a vector
-        ##doy_ann<-rbind(wbxts[ig_date],doy_ann);head(doy_ann);tail(doy_ann)#append ig status conditions to fire year wb including all years of record
-        ##doy_ann1<-subset(doy_ann, maj_class="Shrub");head(doy_ann1)
-        doy_ann_sub<-doy_ann[,c("year","month","day","RD","VPD","Tavg","SOIL","GDD","AWSSM","RAIN","AET","D")];head(doy_ann_sub)
-        f3<-as.Date(index(doy_ann_sub), format = "%Y-%m-%d");head(f3);length(f3)
+        doy_ann<-period_agg[ll];head(doy_ann)
+        f3<-as.Date(index(doy_ann), format = "%Y-%m-%d");head(f3);length(f3)
         ##compute percentile rank of each observation in the sequence of years before and including (last line) year of fire
-        rankthis_shrub<-data.frame(date=index(doy_ann_sub), coredata(doy_ann_sub));head(rankthis_shrub)
-        ranks<-apply(rankthis_shrub[5:14],2,percent_rank)
+        rankthis_shrub<-data.frame(date=index(doy_ann), coredata(doy_ann));head(rankthis_shrub)
+        ranks<-apply(rankthis_shrub[2:10],2,percent_rank)
         ranksxts<-xts(coredata(ranks),order.by=f3);head(ranksxts)#build xts data structure 
         
         ranksxts_ig<-cbind(ranksxts,0);head(ranksxts_ig)#add a column to hold indicator of ignition, where zero = no, 1 = ignition date
