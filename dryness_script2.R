@@ -537,13 +537,17 @@ for (n in 1:nrow(igsite)){
 
 
 ###########################ROC analysis preparation steps##################################################
-#make water balance an xts
-#compute 14 day rolling means and sums
-#compute percentile ranks of rolling means for fire season depending on veg type where site is located
-#percentile rank normalizes water balance values for variation in vegetaiton structyre and type
-#identify the day of year when fire started
-#stack water balance files for all sites into one data frame for ROC analysis
-#easier to use range of climate data from 1980-01-01 thru ignition date
+## make water balance an xts
+## compute 14 day rolling means and sums
+## compute percentile ranks of rolling means for fire season depending on veg type where site is located
+## percentile rank normalizes water balance values for variation in vegetaiton structyre and type
+## identify the day of year when fire started
+## stack water balance files for all sites into one data frame for ROC analysis
+## easier to use range of climate data from 1980-01-01 thru ignition date
+
+## https://mlu-explain.github.io/roc-auc/
+## Reading about ROC Analysis
+
 fire_forest_long<-NULL
 fire_nonforest_long<-NULL
 fire_shrub_long<-NULL
