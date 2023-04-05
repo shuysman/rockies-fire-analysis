@@ -549,324 +549,315 @@ fire_nonforest_long<-NULL
 fire_shrub_long<-NULL
 fire_herb_long<-NULL
 
-n <- 1
-##n=146#this site (117) had D=0 on day of ignition which could make it zeroth percentile.  Seems odd, but could happen 
-for (n in 1:nrow(igsite)){
-    site<-igsite[n,1];site
-    dt<-igsite[n,2];dt
-    dtx<-as.Date(dt, format = "%Y/%m/%d");dtx#format date as POSIX so you and add and subtract number of days that bracket time period of interest
-    ##subset out a year of data prior to ignition
-    ##then use rollapply functions to summarize dryness conditions at daily, weekly, monthly intervals prior to ignition
-    ##this way you can easily modify periods of interest in roll apply function rather than building interval specific subsets which would balloon
-    ##define periods of interest for extracting wb 
-    start_date <- '1984-01-01'
-    ig_date <- dtx;ig_date 
+## Periods of time to calculate rolling means/sums for We want to
+## evaluate what window of time to use here 14 days was chosen as the
+## window for the original paper, as a period of time that would allow
+## for dryness to accumulate, wouldn't get affected by small precip
+## events but shorter/longer time spans were not evaluated.
+windows <- c(1, 3, 7, 11, 14, 17, 21, 31)
 
-    sitewb<-read.csv(site, stringsAsFactors=FALSE);head(sitewb)
+forest_roc_table <- tribble(~window, ~var, ~auc, ~auc20, ~auc10)
+nonforest_roc_table <- tribble(~window, ~var, ~auc, ~auc20, ~auc10)
+
+## windows <- c(7) ## for testing
+## k <- 7
+## n <- 1
+
+for (k in windows) {
+    for (n in 1:nrow(igsite)){
+        print(paste(n, "Site:", site, "Rolling mean window:", k))
+        site<-igsite[n,1];site
+        dt<-igsite[n,2];dt
+        dtx<-as.Date(dt, format = "%Y/%m/%d");dtx#format date as POSIX so you and add and subtract number of days that bracket time period of interest
+        ##subset out a year of data prior to ignition
+        ##then use rollapply functions to summarize dryness conditions at daily, weekly, monthly intervals prior to ignition
+        ##this way you can easily modify periods of interest in roll apply function rather than building interval specific subsets which would balloon
+        ##define periods of interest for extracting wb 
+        start_date <- '1984-01-01'
+        ig_date <- dtx;ig_date 
+
+        sitewb<-read.csv(site, stringsAsFactors=FALSE);head(sitewb)
                                         #convert relative humidity to relative dryness as 1-rh
-    sitewb <- sitewb %>% mutate(RH = 100 - RH)
-    nrow(sitewb); names(sitewb)
-    ##colnames(sitewb)[1:24]<-c("date","year","month","day","SVP","RD","VPD","P","TEMP","F","RAIN","SNOW","PACK","MELT","W","PET","W_PET","SOIL","SOIL_Delta",
-    ##                          "AET","RUNOFF","D","GDD","site")#rename the last 3 columns
-    colnames(sitewb)<-c("line", "Date","P", "D", "AET", "SOIL", "DRO", "RAIN", "PACK", "PET", "VPD", "RD", "Tmax", "Tmin", "Tavg", "delta_soil", "GDD")
-    names(sitewb)
-    sitewb$Date <- as.Date(sitewb$Date, format = "%Y-%m-%d")
-    sitewb <- sitewb %>% separate(Date, c("year", "month", "day"), sep = "-", remove = FALSE) %>% mutate_at(vars(year,month,day), as.numeric)
-    names(sitewb)
-    corewb<-sitewb[,c(-1,-2)];head(corewb)#drop dates and strings prior to converting to xts
-    ##keep any strings out of the xts matrix or it will convert everything to strings with obnoxious quotes
-    ## sitecol<-sitewb[,24]#in case you need to add the site information back into a data frame
-    f2<-as.Date(sitewb[,2], format = "%Y-%m-%d");head(f2);length(f2)
-    wbxts<-xts(coredata(corewb),order.by=f2);head(wbxts)#build xts data structure 
-    awssm<-max(wbxts$SOIL)-wbxts$SOIL;head(awssm);names(awssm)<-"AWSSM"#  this should be added to water balance model
-    doy<-yday(wbxts);head(doy)
-    wbxts<-cbind(wbxts,awssm,doy);head(wbxts)
-    names(wbxts)[ncol(wbxts)]<-"doy";head(wbxts)#rename the doy column in the xts
-    
+        sitewb <- sitewb %>% mutate(RH = 100 - RH)
+        nrow(sitewb); names(sitewb)
+        ##colnames(sitewb)[1:24]<-c("date","year","month","day","SVP","RD","VPD","P","TEMP","F","RAIN","SNOW","PACK","MELT","W","PET","W_PET","SOIL","SOIL_Delta",
+        ##                          "AET","RUNOFF","D","GDD","site")#rename the last 3 columns
+        colnames(sitewb)<-c("line", "Date","P", "D", "AET", "SOIL", "DRO", "RAIN", "PACK", "PET", "VPD", "RD", "Tmax", "Tmin", "Tavg", "delta_soil", "GDD")
+        names(sitewb)
+        sitewb$Date <- as.Date(sitewb$Date, format = "%Y-%m-%d")
+        sitewb <- sitewb %>% separate(Date, c("year", "month", "day"), sep = "-", remove = FALSE) %>% mutate_at(vars(year,month,day), as.numeric)
+        names(sitewb)
+        corewb<-sitewb[,c(-1,-2)];head(corewb)#drop dates and strings prior to converting to xts
+        ##keep any strings out of the xts matrix or it will convert everything to strings with obnoxious quotes
+        ## sitecol<-sitewb[,24]#in case you need to add the site information back into a data frame
+        f2<-as.Date(sitewb[,2], format = "%Y-%m-%d");head(f2);length(f2)
+        wbxts<-xts(coredata(corewb),order.by=f2);head(wbxts)#build xts data structure 
+        awssm<-max(wbxts$SOIL)-wbxts$SOIL;head(awssm);names(awssm)<-"AWSSM"#  this should be added to water balance model
+        doy<-yday(wbxts);head(doy)
+        wbxts<-cbind(wbxts,awssm,doy);head(wbxts)
+        names(wbxts)[ncol(wbxts)]<-"doy";head(wbxts)#rename the doy column in the xts
+        
 ########daily wb summary#################
-    ## determine water balance conditions on date of ignition
-    igstatus<-as.data.frame(wbxts[ig_date]);igstatus
-    ## add site attributes from master site file
-    a<- which(paste(srmasterwf$Event_ID, ".csv", sep='') == site);a#identifies the row number in site file attribute file
-    names(srmasterwf)
-    ##attributes<-srmasterwf[a,c(1,17,19,56:58)];attributes#add site name, acres, fire type, veg class, day of year of ignition
-    attributes<-srmasterwf[a,c(1,8,4,33,49)];attributes#add site name (1), acres (17), fire type (19), veg class (56 - maj_class), day of year of ignition
-    ## igstatus_att<-cbind(attributes,igstatus[,c("year","month","day","SVP","RD","VPD","TEMP","SOIL","GDD","AWSSM","RAIN","AET","D")]);igstatus_att
-    ## igstatus_stack<-rbind(igstatus_att,igstatus_stack)
-    ## names(igstatus_stack)
-    
-################calculate 14 day rolling mean or sums####################################
+        ## determine water balance conditions on date of ignition
+        igstatus<-as.data.frame(wbxts[ig_date]);igstatus
+        ## add site attributes from master site file
+        a<- which(paste(srmasterwf$Event_ID, ".csv", sep='') == site);a#identifies the row number in site file attribute file
+        names(srmasterwf)
+        ##attributes<-srmasterwf[a,c(1,17,19,56:58)];attributes#add site name, acres, fire type, veg class, day of year of ignition
+        attributes<-srmasterwf[a,c(1,8,4,33,49)];attributes#add site name (1), acres (17), fire type (19), veg class (56 - maj_class), day of year of ignition
+        ## igstatus_att<-cbind(attributes,igstatus[,c("year","month","day","SVP","RD","VPD","TEMP","SOIL","GDD","AWSSM","RAIN","AET","D")]);igstatus_att
+        ## igstatus_stack<-rbind(igstatus_att,igstatus_stack)
+        ## names(igstatus_stack)
+        
+######################calculate rolling mean or sums######################################
 ################k=?  is the number of days across which to summarize######################
-    ##ep1 <- endpoints(historic,on="days",k=14);ep1#build an index of windows over which you summarize
-    ##period_means<-rollapply(historic[,c("SVP","RD","VPD","Tavg","SOIL","GDD","AWSSM")], 14, mean, by = 1, by.column = TRUE);period_means[1:16,]#rolling values start at doy 14
-    period_means<-rollapply(wbxts[,c("RD","VPD","Tavg","SOIL","AWSSM")], 14, mean, by = 1, by.column = TRUE);period_means[1:16,]#rolling values start at doy 14
-    period_sums<-rollapply(wbxts[,c("RAIN","AET","D", "GDD")], 14, sum, by = 1, by.column = TRUE)
-    ## period_means<-period.apply(historic[,c("SVP","RH","VPD","TEMP","SOIL","GDD","AWSSM")],INDEX=ep1,FUN=colMeans);tail(period_means)#summarize on those windows
-    ## weekly_means<-apply.weekly(historic[,c("SVP","RH","VPD","TEMP","SOIL","GDD","AWSSM")],colMeans);head(weekly_means)
-    ## period_sums<-period.apply(historic[,c("RAIN","AET","D")],INDEX=ep1,FUN=colSums);tail(period_sums)
-    ## weekly_sums<-apply.weekly(historic[,c("RAIN","AET","D")],colSums);head(weekly_sums)
-    ## weekly_agg<-cbind(weekly_means,weekly_sums);head(weekly_agg)#;str(weekly_agg)#these are the weekly data across all weeks
-    period_agg<-cbind(period_means,period_sums);period_agg[10:20,]#values start at row 14 or what ever the rolling mean is set to thus NA's
-    ## write.csv(period_agg,"period_agg.csv")
-    
-    doy_min_max#start and end of fire seasons by day of year based on ignition dates for each veg type
-    ## trees
-    if(attributes$maj_class=="forest") {
-        ##forests 
-        ll <- seq(forest_end, forest_start, by = "-1 day");ll#find ig doy's in years before ignition
-        doy_ann<-period_agg[ll];head(doy_ann)
-        f3<-as.Date(index(doy_ann), format = "%Y-%m-%d");head(f3);length(f3)
-        ##compute percentile rank of each observation in the sequence of years 
-        rankthis_forest<-data.frame(date=index(doy_ann), coredata(doy_ann));head(rankthis_forest)
-        ranks<-apply(rankthis_forest[2:10],2,percent_rank)
-        ranksxts<-xts(coredata(ranks),order.by=f3);head(ranksxts)#build xts data structure 
+        ##ep1 <- endpoints(historic,on="days",k=14);ep1#build an index of windows over which you summarize
+        ##period_means<-rollapply(historic[,c("SVP","RD","VPD","Tavg","SOIL","GDD","AWSSM")], 14, mean, by = 1, by.column = TRUE);period_means[1:16,]#rolling values start at doy 14
+        period_means<-rollapply(wbxts[,c("RD","VPD","Tavg","SOIL","AWSSM")], k, mean, by = 1, by.column = TRUE);period_means[1:16,]#rolling values start at doy 14
+        period_sums<-rollapply(wbxts[,c("RAIN","AET","D", "GDD")], k, sum, by = 1, by.column = TRUE)
+        ## period_means<-period.apply(historic[,c("SVP","RH","VPD","TEMP","SOIL","GDD","AWSSM")],INDEX=ep1,FUN=colMeans);tail(period_means)#summarize on those windows
+        ## weekly_means<-apply.weekly(historic[,c("SVP","RH","VPD","TEMP","SOIL","GDD","AWSSM")],colMeans);head(weekly_means)
+        ## period_sums<-period.apply(historic[,c("RAIN","AET","D")],INDEX=ep1,FUN=colSums);tail(period_sums)
+        ## weekly_sums<-apply.weekly(historic[,c("RAIN","AET","D")],colSums);head(weekly_sums)
+        ## weekly_agg<-cbind(weekly_means,weekly_sums);head(weekly_agg)#;str(weekly_agg)#these are the weekly data across all weeks
+        period_agg<-cbind(period_means,period_sums);period_agg[10:20,]#values start at row 14 or what ever the rolling mean is set to thus NA's
+        ## write.csv(period_agg,"period_agg.csv")
         
-        ranksxts_ig<-cbind(ranksxts,0);head(ranksxts_ig)#add a column to hold indicator of ignition, where zero = no, 1 = ignition date
-        colnames(ranksxts_ig)[10]<-"fire";head(ranksxts_ig)
-        ranksxts_ig[ig_date,10]<-1;head(ranksxts_ig);ranksxts_ig[ig_date,]#change ignition date fire column value to 1
-        fire_forest<-as.data.frame(ranksxts_ig)
-        fire_forest<-cbind(attributes$Event_ID,attributes$maj_class,fire_forest);head(fire_forest)#add site name as a key for look up if needed later
-        colnames(fire_forest)[1:2]<-c("site","maj_class");head(fire_forest)
-        fire_forest_long<-rbind(fire_forest_long,fire_forest)
-        
+        doy_min_max#start and end of fire seasons by day of year based on ignition dates for each veg type
+        ## trees
+        if(attributes$maj_class=="forest") {
+            ##forests 
+            ll <- seq(forest_end, forest_start, by = "-1 day");ll#find ig doy's in years before ignition
+            doy_ann<-period_agg[ll];head(doy_ann)
+            f3<-as.Date(index(doy_ann), format = "%Y-%m-%d");head(f3);length(f3)
+            ##compute percentile rank of each observation in the sequence of years 
+            rankthis_forest<-data.frame(date=index(doy_ann), coredata(doy_ann));head(rankthis_forest)
+            ranks<-apply(rankthis_forest[2:10],2,percent_rank)
+            ranksxts<-xts(coredata(ranks),order.by=f3);head(ranksxts)#build xts data structure 
+            
+            ranksxts_ig<-cbind(ranksxts,0);head(ranksxts_ig)#add a column to hold indicator of ignition, where zero = no, 1 = ignition date
+            colnames(ranksxts_ig)[10]<-"fire";head(ranksxts_ig)
+            ranksxts_ig[ig_date,10]<-1;head(ranksxts_ig);ranksxts_ig[ig_date,]#change ignition date fire column value to 1
+            fire_forest<-as.data.frame(ranksxts_ig)
+            fire_forest<-cbind(attributes$Event_ID,attributes$maj_class,fire_forest);head(fire_forest)#add site name as a key for look up if needed later
+            colnames(fire_forest)[1:2]<-c("site","maj_class");head(fire_forest)
+            fire_forest_long<-rbind(fire_forest_long,fire_forest)
+            
 
-    } else if(attributes$maj_class=="non-forest") {
-        ##nonforests
-        ll <- seq(nonforest_end, nonforest_start, by = "-1 day");ll#find ig doy's in years before ignition
-        doy_ann<-period_agg[ll];head(doy_ann)
-        f3<-as.Date(index(doy_ann), format = "%Y-%m-%d");head(f3);length(f3)
-        ##compute percentile rank of each observation in the sequence of years before and including (last line) year of fire
-        rankthis_nonforest<-data.frame(date=index(doy_ann), coredata(doy_ann));head(rankthis_nonforest)
-        ranks<-apply(rankthis_nonforest[2:10],2,percent_rank)
-        ranksxts<-xts(coredata(ranks),order.by=f3);head(ranksxts)#build xts data structure 
-        
-        ranksxts_ig<-cbind(ranksxts,0);head(ranksxts_ig)#add a column to hold indicator of ignition, where zero = no, 1 = ignition date
-        colnames(ranksxts_ig)[10]<-"fire";head(ranksxts_ig)
-        ranksxts_ig[ig_date,10]<-1;head(ranksxts_ig);ranksxts_ig[ig_date,]#change ignition date fire column value to 1
-        fire_nonforest<-as.data.frame(ranksxts_ig)
-        fire_nonforest<-cbind(attributes$Event_ID,attributes$maj_class,fire_nonforest);head(fire_nonforest)#add site name as a key for look up if needed later
-        colnames(fire_nonforest)[1:2]<-c("site","maj_class");head(fire_nonforest)
-        fire_nonforest_long<-rbind(fire_nonforest_long,fire_nonforest)
-        
-    } else {
-        ##shrubs
-        ll <- seq(shrub_end, shrub_start, by = "-1 day");ll#find ig doy's in years before ignition
-        doy_ann<-period_agg[ll];head(doy_ann)
-        f3<-as.Date(index(doy_ann), format = "%Y-%m-%d");head(f3);length(f3)
-        ##compute percentile rank of each observation in the sequence of years before and including (last line) year of fire
-        rankthis_shrub<-data.frame(date=index(doy_ann), coredata(doy_ann));head(rankthis_shrub)
-        ranks<-apply(rankthis_shrub[2:10],2,percent_rank)
-        ranksxts<-xts(coredata(ranks),order.by=f3);head(ranksxts)#build xts data structure 
-        
-        ranksxts_ig<-cbind(ranksxts,0);head(ranksxts_ig)#add a column to hold indicator of ignition, where zero = no, 1 = ignition date
-        colnames(ranksxts_ig)[11]<-"fire";head(ranksxts_ig)
-        ranksxts_ig[ig_date,11]<-1;head(ranksxts_ig);ranksxts_ig[ig_date,]#change ignition date fire column value to 1
-        fire_shrub<-as.data.frame(ranksxts_ig)
-        fire_shrub<-cbind(attributes$site,attributes$maj_class,fire_shrub);head(fire_shrub)#add site name as a key for look up if needed later
-        colnames(fire_shrub)[1:2]<-c("site","maj_class");head(fire_shrub)
-        fire_shrub_long<-rbind(fire_shrub_long,fire_shrub)
-        
+        } else if(attributes$maj_class=="non-forest") {
+            ##nonforests
+            ll <- seq(nonforest_end, nonforest_start, by = "-1 day");ll#find ig doy's in years before ignition
+            doy_ann<-period_agg[ll];head(doy_ann)
+            f3<-as.Date(index(doy_ann), format = "%Y-%m-%d");head(f3);length(f3)
+            ##compute percentile rank of each observation in the sequence of years before and including (last line) year of fire
+            rankthis_nonforest<-data.frame(date=index(doy_ann), coredata(doy_ann));head(rankthis_nonforest)
+            ranks<-apply(rankthis_nonforest[2:10],2,percent_rank)
+            ranksxts<-xts(coredata(ranks),order.by=f3);head(ranksxts)#build xts data structure 
+            
+            ranksxts_ig<-cbind(ranksxts,0);head(ranksxts_ig)#add a column to hold indicator of ignition, where zero = no, 1 = ignition date
+            colnames(ranksxts_ig)[10]<-"fire";head(ranksxts_ig)
+            ranksxts_ig[ig_date,10]<-1;head(ranksxts_ig);ranksxts_ig[ig_date,]#change ignition date fire column value to 1
+            fire_nonforest<-as.data.frame(ranksxts_ig)
+            fire_nonforest<-cbind(attributes$Event_ID,attributes$maj_class,fire_nonforest);head(fire_nonforest)#add site name as a key for look up if needed later
+            colnames(fire_nonforest)[1:2]<-c("site","maj_class");head(fire_nonforest)
+            fire_nonforest_long<-rbind(fire_nonforest_long,fire_nonforest)
+            
+        } else {
+            ##shrubs
+            ll <- seq(shrub_end, shrub_start, by = "-1 day");ll#find ig doy's in years before ignition
+            doy_ann<-period_agg[ll];head(doy_ann)
+            f3<-as.Date(index(doy_ann), format = "%Y-%m-%d");head(f3);length(f3)
+            ##compute percentile rank of each observation in the sequence of years before and including (last line) year of fire
+            rankthis_shrub<-data.frame(date=index(doy_ann), coredata(doy_ann));head(rankthis_shrub)
+            ranks<-apply(rankthis_shrub[2:10],2,percent_rank)
+            ranksxts<-xts(coredata(ranks),order.by=f3);head(ranksxts)#build xts data structure 
+            
+            ranksxts_ig<-cbind(ranksxts,0);head(ranksxts_ig)#add a column to hold indicator of ignition, where zero = no, 1 = ignition date
+            colnames(ranksxts_ig)[11]<-"fire";head(ranksxts_ig)
+            ranksxts_ig[ig_date,11]<-1;head(ranksxts_ig);ranksxts_ig[ig_date,]#change ignition date fire column value to 1
+            fire_shrub<-as.data.frame(ranksxts_ig)
+            fire_shrub<-cbind(attributes$site,attributes$maj_class,fire_shrub);head(fire_shrub)#add site name as a key for look up if needed later
+            colnames(fire_shrub)[1:2]<-c("site","maj_class");head(fire_shrub)
+            fire_shrub_long<-rbind(fire_shrub_long,fire_shrub)
+            
+        }
+    }
+
+    head(fire_forest_long)
+    roc_long<-melt(fire_forest_long, id.vars = c("site", "maj_class","fire"), variable.name = "watbal",value.name = "value");head(roc_long)
+    ## draw plots
+                                        # basicplot <- ggplot(roc_long, aes(d = "fire", m = "value", color = model)) + geom_roc(n.cuts = 0) + 
+                                        #   +   style_roc(theme = theme_bw, xlab = "1-Specificity", ylab = "Sensitivity") 
+                                        # ## calculate auc
+                                        # calc_auc(basicplot)
+
+                                        # forest_svp_roc<-roc(fire_forest_long$fire,fire_forest_long$SVP)#build roc
+                                        # svp.df<-data.frame(tpp=forest_svp_roc$sensitivities*100, fpp=(1-forest_svp_roc$specificities)*100, thresholds=forest_svp_roc$thresholds)
+                                        # head(svp.df)#top right of curve
+                                        # tail(svp.df)#bottom left
+                                        # svp.df[svp.df$tpp>99 & svp.df$tpp<99.5,]#choose a range of true positive thresholds for evaluation of percentage false
+
+                                        # glm.fit<-glm(fire_forest_long$fire~fire_forest_long$SVP, family=binomial)
+                                        # plot(fire_forest_long$SVP,fire_forest_long$fire)
+                                        # lines(fire_forest_long$SVP,glm.fit$fitted.values)
+    forest_rd_roc<-roc(fire_forest_long$fire,fire_forest_long$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    forest_vpd_roc<-roc(fire_forest_long$fire,fire_forest_long$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    forest_temp_roc<-roc(fire_forest_long$fire,fire_forest_long$Tavg, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    forest_soil_roc<-roc(fire_forest_long$fire,fire_forest_long$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    forest_gdd_roc<-roc(fire_forest_long$fire,fire_forest_long$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    forest_awssm_roc<-roc(fire_forest_long$fire,fire_forest_long$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    forest_rain_roc<-roc(fire_forest_long$fire,fire_forest_long$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    forest_aet_roc<-roc(fire_forest_long$fire,fire_forest_long$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    forest_d_roc<-roc(fire_forest_long$fire,fire_forest_long$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+
+                                        # par(pty = "m")#make square graphs
+                                        # plot.roc(forest_svp_roc, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage",ylab="True Positive Percentage", 
+                                        #          col="#377eb8",lwd=4, print.auc=TRUE)#, print.auc.x=0.4,partial.auc=c(.100,.90),auc.polygon=TRUE,auc.polygon.col="#377eb822")
+                                        # plot.roc(forest_svp_roc, 0.7, 1, 2)
+                                        # 
+                                        # ## If you want to rename the x and y axes...
+                                        # plot.roc(forest_rd_roc, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage")
+
+    ## par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
+    ## ##                "s" - creates a square plotting region
+    ## ##                "m" - (the default) creates a maximal plotting region
+    ## par(bg="white")
+    ## plot.roc(forest_rd_roc, xlab="False positive percentage",ylab="True positive percentage",legacy.axes = TRUE, lwd=4, print.auc=FALSE,cex.lab=2.5,cex.axis=2, main="Forest")
+    ##                                     #plot.roc(add=TRUE,col="blue",forest_svp_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="vpd",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="pink",forest_rd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="rd",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="dark blue",forest_vpd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="vpd",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="green",forest_temp_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="temp",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="red",forest_soil_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="soil",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="brown",forest_gdd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="gdd",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="magenta",forest_awssm_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="awssm",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="purple",forest_rain_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="rain",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="dark green",forest_aet_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="aet",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="orange",forest_d_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="d",lwd=4, print.auc=FALSE)
+    ##                                     # Add a legend
+    ## legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
+    ##                                     #paste("SVP ",round(auc(forest_svp_roc),1)),
+    ##                         paste("VPD ",round(auc(forest_vpd_roc),1)),
+    ##                         paste("TEMP ",round(auc(forest_temp_roc),1)),
+    ##                         paste("SOIL ",round(auc(forest_soil_roc),1)),
+    ##                         paste("GDD ",round(auc(forest_gdd_roc),1)),
+    ##                         paste("SWD",round(auc(forest_awssm_roc),1)),
+    ##                         paste("RAIN ",round(auc(forest_rain_roc),1)),
+    ##                         paste("AET ",round(auc(forest_aet_roc),1)),
+    ##                         paste("CWD ",round(auc(forest_d_roc),1))),
+    ##        bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
+    ##        lty=1, lwd=4, text.font=2)#cex=0.9,
+    ## text(1,75,"AUC")
+
+
+    ## auc(forest_rd_roc)
+    ## ##auc(forest_svp_roc)
+    ## auc(forest_vpd_roc)
+    ## auc(forest_temp_roc)
+    ## auc(forest_soil_roc)
+    ## auc(forest_gdd_roc)
+    ## auc(forest_awssm_roc)
+    ## auc(forest_rain_roc)
+    ## auc(forest_aet_roc)
+    ## auc(forest_d_roc)
+
+    auc0 <- function(var) {
+        roc <- paste0("forest_", var, "_roc")
+        return(as.numeric(auc(get(roc))))
+    }
+    auc10 <- function(var) {
+        roc <- paste0("forest_", var, "_roc")
+        return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
+    }
+    auc20 <- function(var) {
+        roc <- paste0("forest_", var, "_roc")
+        return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
+    }
+
+    vars <- c("RD", "VPD", "TEMP", "SOIL", "GDD", "AWSSM", "RAIN", "AET", "D")
+    for (var in vars) {
+        forest_roc_table <- forest_roc_table %>% add_row(window = k, var = var, auc = auc0(tolower(var)), auc20 = auc20(tolower(var)), auc10 = auc10(tolower(var)))
+    }
+    
+
+
+    nonforest_rd_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    nonforest_vpd_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    nonforest_temp_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$Tavg, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    nonforest_soil_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    nonforest_gdd_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    nonforest_awssm_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    nonforest_rain_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    nonforest_aet_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+    nonforest_d_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+
+                                        # par(pty = "m")#make square graphs
+                                        # plot.roc(nonforest_svp_roc, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage",ylab="True Positive Percentage", 
+                                        #          col="#377eb8",lwd=4, print.auc=TRUE)#, print.auc.x=0.4,partial.auc=c(.100,.90),auc.polygon=TRUE,auc.polygon.col="#377eb822")
+                                        # plot.roc(nonforest_svp_roc, 0.7, 1, 2)
+                                        # 
+                                        # ## If you want to rename the x and y axes...
+                                        # plot.roc(nonforest_rd_roc, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage")
+
+                                        #par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
+    ##                "s" - creates a square plotting region
+    ##                "m" - (the default) creates a maximal plotting region
+
+    ## plot.roc(nonforest_rd_roc, xlab="False positive percentage",ylab="True positive percentage",legacy.axes = TRUE, lwd=4, print.auc=FALSE,cex.lab=2.5,cex.axis=2, main="Non-forest")
+    ##                                     #plot.roc(add=TRUE,col="blue",nonforest_svp_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="vpd",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="pink",nonforest_rd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="rd",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="dark blue",nonforest_vpd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="vpd",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="green",nonforest_temp_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="temp",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="red",nonforest_soil_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="soil",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="brown",nonforest_gdd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="gdd",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="magenta",nonforest_awssm_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="awssm",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="purple",nonforest_rain_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="rain",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="dark green",nonforest_aet_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="aet",lwd=4, print.auc=FALSE)
+    ## plot.roc(add=TRUE,col="orange",nonforest_d_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="d",lwd=4, print.auc=FALSE)
+    ##                                     # Add a legend
+    ## legend(35, 75, legend=c(paste("RD ",round(auc(nonforest_rd_roc),1)),
+    ##                                     #paste("SVP ",round(auc(nonforest_svp_roc),1)),
+    ##                         paste("VPD ",round(auc(nonforest_vpd_roc),1)),
+    ##                         paste("TEMP ",round(auc(nonforest_temp_roc),1)),
+    ##                         paste("SOIL ",round(auc(nonforest_soil_roc),1)),
+    ##                         paste("GDD ",round(auc(nonforest_gdd_roc),1)),
+    ##                         paste("SWD",round(auc(nonforest_awssm_roc),1)),
+    ##                         paste("RAIN ",round(auc(nonforest_rain_roc),1)),
+    ##                         paste("AET ",round(auc(nonforest_aet_roc),1)),
+    ##                         paste("CWD ",round(auc(nonforest_d_roc),1))),
+    ##        bty="n", col=c("pink", "dark blue","green","red","brown","magenta", "purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
+    ##        lty=1, lwd=4, text.font=2)#cex=0.9,
+    ## text(1,75,"AUC")
+
+
+    ## auc(nonforest_rd_roc)
+    ## ##auc(nonforest_svp_roc)
+    ## auc(nonforest_vpd_roc)
+    ## auc(nonforest_temp_roc)
+    ## auc(nonforest_soil_roc)
+    ## auc(nonforest_gdd_roc)
+    ## auc(nonforest_awssm_roc)
+    ## auc(nonforest_rain_roc)
+    ## auc(nonforest_aet_roc)
+    ## auc(nonforest_d_roc)
+
+    auc0 <- function(var) {
+        roc <- paste0("nonforest_", var, "_roc")
+        return(as.numeric(auc(get(roc))))
+    }
+    auc10 <- function(var) {
+        roc <- paste0("nonforest_", var, "_roc")
+        return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
+    }
+    auc20 <- function(var) {
+        roc <- paste0("nonforest_", var, "_roc")
+        return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
+    }
+    
+    vars <- c("RD", "VPD", "TEMP", "SOIL", "GDD", "AWSSM", "RAIN", "AET", "D")
+    for (var in vars) {
+        nonforest_roc_table <- nonforest_roc_table %>% add_row(window = k, var = var, auc = auc0(tolower(var)), auc20 = auc20(tolower(var)), auc10 = auc10(tolower(var)))
     }
 }
-
-head(fire_forest_long)
-roc_long<-melt(fire_forest_long, id.vars = c("site", "maj_class","fire"), variable.name = "watbal",value.name = "value");head(roc_long)
-## draw plots
-# basicplot <- ggplot(roc_long, aes(d = "fire", m = "value", color = model)) + geom_roc(n.cuts = 0) + 
-#   +   style_roc(theme = theme_bw, xlab = "1-Specificity", ylab = "Sensitivity") 
-# ## calculate auc
-# calc_auc(basicplot)
-
-# forest_svp_roc<-roc(fire_forest_long$fire,fire_forest_long$SVP)#build roc
-# svp.df<-data.frame(tpp=forest_svp_roc$sensitivities*100, fpp=(1-forest_svp_roc$specificities)*100, thresholds=forest_svp_roc$thresholds)
-# head(svp.df)#top right of curve
-# tail(svp.df)#bottom left
-# svp.df[svp.df$tpp>99 & svp.df$tpp<99.5,]#choose a range of true positive thresholds for evaluation of percentage false
-
- # glm.fit<-glm(fire_forest_long$fire~fire_forest_long$SVP, family=binomial)
- # plot(fire_forest_long$SVP,fire_forest_long$fire)
- # lines(fire_forest_long$SVP,glm.fit$fitted.values)
-forest_rd_roc<-roc(fire_forest_long$fire,fire_forest_long$RD, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_vpd_roc<-roc(fire_forest_long$fire,fire_forest_long$VPD, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_temp_roc<-roc(fire_forest_long$fire,fire_forest_long$Tavg, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_soil_roc<-roc(fire_forest_long$fire,fire_forest_long$SOIL, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_gdd_roc<-roc(fire_forest_long$fire,fire_forest_long$GDD, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_awssm_roc<-roc(fire_forest_long$fire,fire_forest_long$AWSSM, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_rain_roc<-roc(fire_forest_long$fire,fire_forest_long$RAIN, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_aet_roc<-roc(fire_forest_long$fire,fire_forest_long$AET, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_d_roc<-roc(fire_forest_long$fire,fire_forest_long$D, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-
-# par(pty = "m")#make square graphs
-# plot.roc(forest_svp_roc, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage",ylab="True Positive Percentage", 
-#          col="#377eb8",lwd=4, print.auc=TRUE)#, print.auc.x=0.4,partial.auc=c(.100,.90),auc.polygon=TRUE,auc.polygon.col="#377eb822")
-# plot.roc(forest_svp_roc, 0.7, 1, 2)
-# 
-# ## If you want to rename the x and y axes...
-# plot.roc(forest_rd_roc, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage")
-
-par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
-##                "s" - creates a square plotting region
-##                "m" - (the default) creates a maximal plotting region
-par(bg="white")
-plot.roc(forest_rd_roc, xlab="False positive percentage",ylab="True positive percentage",legacy.axes = TRUE, lwd=4, print.auc=FALSE,cex.lab=2.5,cex.axis=2, main="Forest")
-                                        #plot.roc(add=TRUE,col="blue",forest_svp_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="vpd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="pink",forest_rd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="rd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="dark blue",forest_vpd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="vpd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="green",forest_temp_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="temp",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="red",forest_soil_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="soil",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="brown",forest_gdd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="gdd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="magenta",forest_awssm_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="awssm",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="purple",forest_rain_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="rain",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="dark green",forest_aet_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="aet",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="orange",forest_d_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="d",lwd=4, print.auc=FALSE)
-# Add a legend
-legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
-                           #paste("SVP ",round(auc(forest_svp_roc),1)),
-                           paste("VPD ",round(auc(forest_vpd_roc),1)),
-                           paste("TEMP ",round(auc(forest_temp_roc),1)),
-                           paste("SOIL ",round(auc(forest_soil_roc),1)),
-                          paste("GDD ",round(auc(forest_gdd_roc),1)),
-                          paste("SWD",round(auc(forest_awssm_roc),1)),
-                          paste("RAIN ",round(auc(forest_rain_roc),1)),
-                          paste("AET ",round(auc(forest_aet_roc),1)),
-                          paste("CWD ",round(auc(forest_d_roc),1))),
-       bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
-       lty=1, lwd=4, text.font=2)#cex=0.9,
-text(1,75,"AUC")
-
-
-auc(forest_rd_roc)
-##auc(forest_svp_roc)
-auc(forest_vpd_roc)
-auc(forest_temp_roc)
-auc(forest_soil_roc)
-auc(forest_gdd_roc)
-auc(forest_awssm_roc)
-auc(forest_rain_roc)
-auc(forest_aet_roc)
-auc(forest_d_roc)
-
-vars <- c(fire_forest_long$RD, fire_forest_long$VPD, fire_forest_long$Tavg, fire_forest_long$SOIL, fire_forest_long$GDD, fire_forest_long$AWSSM, fire_forest_long$RAIN, fire_forest_long$AET, fire_forest_long$D)
-
-
-var <- fire_forest_long$RD
-
-roc_table <- tribble(~var, ~auc, ~auc20, ~auc10)
-for (var in vars) {
-    roc_table <- roc_table %>% add_row(var = as.character(substitute(var)),
-                                       auc = as.numeric(auc(response = fire_forest_long$fire, predictor = var)),
-                                       auc20 = as.numeric(auc(response = fire_forest_long$fire, predictor = var,  partial.auc=c(1, .8))),
-                                       auc10 = as.numeric(auc(response = fire_forest_long$fire, predictor = var,  partial.auc=c(1, .9))))
-}
-
-auc0 <- function(var) {
-    roc <- paste0("forest_", var, "_roc")
-    return(as.numeric(auc(get(roc))))
-}
-auc10 <- function(var) {
-    roc <- paste0("forest_", var, "_roc")
-    return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
-}
-auc20 <- function(var) {
-    roc <- paste0("forest_", var, "_roc")
-    return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
-}
-(roc_table <- tribble(~var, ~auc, ~auc20, ~auc10,
-                     "RD", auc0("rd"), auc20("rd"), auc10("rd"),
-                     "VPD", auc0("vpd"), auc20("vpd"), auc10("vpd"),
-                     "TEMP", auc0("temp"), auc20("temp"), auc10("temp"),
-                     "SOIL", auc0("soil"), auc20("soil"), auc10("soil"),
-                     "GDD", auc0("gdd"), auc20("gdd"), auc10("gdd"),
-                     "AWSSM", auc0("awssm"), auc20("awssm"), auc10("awssm"),
-                     "RAIN", auc0("rain"), auc20("rain"), auc10("rain"),
-                     "AET", auc0("aet"), auc20("aet"), auc10("aet"),
-                     "D", auc0("d"), auc20("d"), auc10("d"),
-                     ) %>% arrange(desc(auc)))
-
-
-nonforest_rd_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$RD, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_vpd_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$VPD, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_temp_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$Tavg, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_soil_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$SOIL, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_gdd_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$GDD, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_awssm_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$AWSSM, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_rain_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$RAIN, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_aet_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$AET, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_d_roc<-roc(fire_nonforest_long$fire,fire_nonforest_long$D, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-
-# par(pty = "m")#make square graphs
-# plot.roc(nonforest_svp_roc, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage",ylab="True Positive Percentage", 
-#          col="#377eb8",lwd=4, print.auc=TRUE)#, print.auc.x=0.4,partial.auc=c(.100,.90),auc.polygon=TRUE,auc.polygon.col="#377eb822")
-# plot.roc(nonforest_svp_roc, 0.7, 1, 2)
-# 
-# ## If you want to rename the x and y axes...
-# plot.roc(nonforest_rd_roc, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage")
-
-#par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
-##                "s" - creates a square plotting region
-##                "m" - (the default) creates a maximal plotting region
-
-plot.roc(nonforest_rd_roc, xlab="False positive percentage",ylab="True positive percentage",legacy.axes = TRUE, lwd=4, print.auc=FALSE,cex.lab=2.5,cex.axis=2, main="Non-forest")
-                                        #plot.roc(add=TRUE,col="blue",nonforest_svp_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="vpd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="pink",nonforest_rd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="rd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="dark blue",nonforest_vpd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="vpd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="green",nonforest_temp_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="temp",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="red",nonforest_soil_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="soil",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="brown",nonforest_gdd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="gdd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="magenta",nonforest_awssm_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="awssm",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="purple",nonforest_rain_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="rain",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="dark green",nonforest_aet_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="aet",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="orange",nonforest_d_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="d",lwd=4, print.auc=FALSE)
-# Add a legend
-legend(35, 75, legend=c(paste("RD ",round(auc(nonforest_rd_roc),1)),
-                        #paste("SVP ",round(auc(nonforest_svp_roc),1)),
-                        paste("VPD ",round(auc(nonforest_vpd_roc),1)),
-                        paste("TEMP ",round(auc(nonforest_temp_roc),1)),
-                        paste("SOIL ",round(auc(nonforest_soil_roc),1)),
-                        paste("GDD ",round(auc(nonforest_gdd_roc),1)),
-                        paste("SWD",round(auc(nonforest_awssm_roc),1)),
-                        paste("RAIN ",round(auc(nonforest_rain_roc),1)),
-                        paste("AET ",round(auc(nonforest_aet_roc),1)),
-                        paste("CWD ",round(auc(nonforest_d_roc),1))),
-       bty="n", col=c("pink", "dark blue","green","red","brown","magenta", "purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
-       lty=1, lwd=4, text.font=2)#cex=0.9,
-text(1,75,"AUC")
-
-
-auc(nonforest_rd_roc)
-##auc(nonforest_svp_roc)
-auc(nonforest_vpd_roc)
-auc(nonforest_temp_roc)
-auc(nonforest_soil_roc)
-auc(nonforest_gdd_roc)
-auc(nonforest_awssm_roc)
-auc(nonforest_rain_roc)
-auc(nonforest_aet_roc)
-auc(nonforest_d_roc)
-
-auc0 <- function(var) {
-    roc <- paste0("nonforest_", var, "_roc")
-    return(as.numeric(auc(get(roc))))
-}
-auc10 <- function(var) {
-    roc <- paste0("nonforest_", var, "_roc")
-    return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
-}
-auc20 <- function(var) {
-    roc <- paste0("nonforest_", var, "_roc")
-    return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
-}
-(roc_table <- tribble(~var, ~auc, ~auc20, ~auc10,
-                     "RD", auc0("rd"), auc20("rd"), auc10("rd"),
-                     "VPD", auc0("vpd"), auc20("vpd"), auc10("vpd"),
-                     "TEMP", auc0("temp"), auc20("temp"), auc10("temp"),
-                     "SOIL", auc0("soil"), auc20("soil"), auc10("soil"),
-                     "GDD", auc0("gdd"), auc20("gdd"), auc10("gdd"),
-                     "AWSSM", auc0("awssm"), auc20("awssm"), auc10("awssm"),
-                     "RAIN", auc0("rain"), auc20("rain"), auc10("rain"),
-                     "AET", auc0("aet"), auc20("aet"), auc10("aet"),
-                     "D", auc0("d"), auc20("d"), auc10("d"),
-                     ) %>% arrange(desc(auc)))
 
 ## We can calculate the area under the curve...
 ##roc(fire_nonforest_long$fire,fire_nonforest_long$SVP, plot=TRUE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
@@ -1127,6 +1118,7 @@ colnames(rankstack2)[15]<-"burned";head(rankstack2)
 # 
 #   #sort by mpg (ascending) and cyl (descending)
 #   newdata <- mtcars[order(mpg, -cyl),] 
+rankstack2$halog <- log(rankstack$Acres/.404686)
 
 #plot cum dist functions of wb vars at week of each ignition
 dec<- seq(from = 0.1, to = 0.9, by = 0.1);dec
@@ -1137,7 +1129,20 @@ plot(cumfun_forest, xlab="Deficit Percentiles at Ignition", ylab="Cumulative Dis
 forest_q<-quantile(forest$D,dec);forest_q#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min max
 abline(v=forest_q)#set percentiles of dryness
 abline(h=dec)#quantile of burns at each of the set percentiles of dryness
-points(forest_q,dec,col="red")# intersection of burn quantile at dryness percentile defined by dec
+points(forest_q,dec,col="red", pch=19)# intersection of burn quantile at dryness percentile defined by dec
+
+#plot cum dist functions of wb vars at week of each ignition
+dec<- seq(from = 0.1, to = 0.9, by = 0.1);dec
+head(rankstack)#percentile rank of wb conditions at week of burn relative to all weeks prior to burn
+forest<-subset(rankstack, maj_class=="forest");forest#note class Tree has a space at end
+cumfun_forest<-ecdf(forest$VPD)#cumulative distributinon function for fire start by day of year
+plot(cumfun_forest, xlab="Deficit Percentiles at Ignition", ylab="Cumulative Distirbution Function % Fires")
+forest_q<-quantile(forest$VPD,dec);forest_q#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min max
+abline(v=forest_q)#set percentiles of dryness
+abline(h=dec)#quantile of burns at each of the set percentiles of dryness
+points(forest_q,dec,col="red", pch=19)# intersection of burn quantile at dryness percentile defined by dec
+
+
 
 head(rankstack)#percentile rank of wb conditions at week of burn relative to all weeks prior to burn
 nonforest<-subset(rankstack, maj_class=="non-forest");forest#note class Tree has a space at end
@@ -1708,7 +1713,7 @@ hplot<-ggplot(mranks, aes(x=value)) + geom_density(aes(fill=maj_class), alpha=0.
 hplot 
 
 qs<-c(0.95)#quantiles for quantile regression
-splot<- ggplot(mranks, aes(x=value, y=halog,color=maj_class)) + geom_point(size = 5) + # geom_bar(stat="identity", position=position_dodge())+#
+splot<- ggplot(mranks, aes(x=value, y=log(Acres),color=maj_class)) + geom_point(size = 5) + # geom_bar(stat="identity", position=position_dodge())+#
   facet_wrap(~variable, scales="free")+#scale_x_continuous("Year", breaks=seq(1985,2015,1), limits=c(1985,2015))+ 
   theme_bw() + theme( panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
   theme(axis.text=element_text(size=24,face="bold",family="Courier New"),
@@ -1786,11 +1791,9 @@ cur_lag<-cbind(cur_yr_wb,lag_one_wb[,10:28]);head(cur_lag);names(cur_lag)#wb fro
 
 #plot density curves for fires by doy by dominant veg type. figure above split out by veg type
 hplot<-ggplot(ig_status_wb,aes(x=meanRD,color=maj_class)) + geom_histogram(aes(y=..density..))
-hplot
-                                                                            
-                                                                            + #geom_vline(aes(xintercept=mean(doy)), color=maj_class,size=1.5)+
+hplot  #+ geom_vline(aes(xintercept=mean(doy)), color=maj_class,size=1.5)+
   #scale_x_continuous( breaks=seq(0,365,30), limits=c(0,365))+
-  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+  + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
   theme(axis.text=element_text(size=24,face="bold",family="Courier New"),
         axis.title=element_text(size=28,face="bold",family="Courier New"),
         title=element_text(size=20,face="bold",family="Courier New"))+
@@ -1802,14 +1805,18 @@ hplot+ ylab("Fire frequency") + xlab("Water Balance")
 #https://www.r-bloggers.com/part-4a-modelling-predicting-the-amount-of-rain/
 #http://blog.revolutionanalytics.com/2016/03/confidence-intervals-for-random-forest.html
 #####################################################
+library(randomForest)
+
 #Randomforest models
 #search and replace ig_end_wb, cur_yr_wb, ig_lag, rankstack2, cur_lag to test different preiods of summarized water balance that may affect fire size
 head(rankstack2)
 names(rankstack2);str(rankstack2)
 levels(rankstack2$maj_class)#identify factor levels
 endcol<-ncol(rankstack2)
-ranknum<-subset(rankstack2, maj_class=="Tree ")
-ranknum<-rankstack2[,c(1:9,13:14)]#pull just numeric values
+##ranknum<-subset(rankstack2, maj_class=="Tree ")
+ranknum<-subset(rankstack2, maj_class=="forest")
+##ranknum<-rankstack2[,c(1:9,13:14)]#pull just numeric values
+ranknum<-ranknum[,c(6:14,16)]#pull just numeric values
 str(ranknum)
 dim(ranknum)
 head(ranknum)
@@ -1842,11 +1849,12 @@ MAE.forest
 
 names(test)
 obs_wb<-test[,c(1:vars)]#an observation data set for making predictions
-obs_burned<-test[,11]
+obs_burned<-test[,vars + 1]
 pred_halog<-predict(ranknum.rf,obs_wb)
 plot(obs_burned,pred_halog)
 lmfit<-lm(obs_burned~pred_halog);summary(lmfit)
 abline(lmfit)
+
 
 #######################################################
 #model results for burned area vs. wb on ignition date######### all veg classes
@@ -1854,7 +1862,7 @@ abline(lmfit)
 ###relations on date of ignition
 stor_ig_status_sum <- list()
 stor_ig_status_aic <- list()
-for(i in names(ig_status_wb)[c(10:19)]){
+for(i in names(ig_status_wb)[c(9:17)]){
   lmfit<-lm(get(i) ~ halog, ig_status_wb)
   lmsum<-summary(lm(get(i) ~ halog, ig_status_wb))
   aiclmfit<-AIC(lmfit)
@@ -1867,7 +1875,7 @@ stor_ig_status_aic
 ###relations for ignition to end of year
 stor_ig_end_sum <- list()
 stor_ig_end_aic <- list()
-for(i in names(ig_end_wb)[c(10:28)]){
+for(i in names(ig_end_wb)[c(9:25)]){
   lmfit<-lm(get(i) ~ halog, ig_end_wb)
   lmsum<-summary(lm(get(i) ~ halog, ig_end_wb))
   aiclmfit<-AIC(lmfit)
@@ -1880,7 +1888,7 @@ stor_ig_end_aic
 ###relations for whole year when fire burned
 stor_cur_yr_sum <- list()
 stor_cur_yr_aic <- list()
-for(i in names(cur_yr_wb)[c(10:28)]){
+for(i in names(cur_yr_wb)[c(9:25)]){
   lmfit<-lm(get(i) ~ halog, cur_yr_wb)
   lmsum<-summary(lm(get(i) ~ halog, cur_yr_wb))
   aiclmfit<-AIC(lmfit)
@@ -1894,7 +1902,7 @@ stor_cur_yr_aic
 ###relations for lag one year
 stor_lag_one_sum <- list()
 stor_lag_one_aic <- list()
-for(i in names(lag_one_wb)[c(10:28)]){
+for(i in names(lag_one_wb)[c(9:25)]){
   lmfit<-lm(get(i) ~ halog, lag_one_wb)
   lmsum<-summary(lm(get(i) ~ halog, lag_one_wb))
   aiclmfit<-AIC(lmfit)
@@ -1914,7 +1922,7 @@ head(cur_lag)
 
 stor_ig_date_lag_one_sum <- list()
 stor_ig_date_lag_one_aic <- list()
-for(i in names(lag_one_wb)[c(10:28)]){
+for(i in names(lag_one_wb)[c(9:25)]){
   y=lag_one_wb$halog#this can be from either data frame since they'er the same in this value
   x=get(i,ig_status_wb)
   z=
@@ -1936,15 +1944,16 @@ hplot<-ggplot(ig_status_wb, aes(x=year, y=doy,color=maj_class)) + geom_point() +
 hplot
 lmfit<-lm(ig_status_wb$doy~ig_status_wb$year)#for all veg classes
 summary(lmfit)
+
 igstatus_herb<-subset(ig_status_wb, maj_class="Herb");igstatus_herb
 lmfit_herb<-lm(igstatus_herb$doy~igstatus_herb$year)#for all herb class
 summary(lmfit_herb)
 
-igstatus_shrub<-subset(ig_status_wb, maj_class="Shrub");igstatus_shrub
+igstatus_shrub<-subset(ig_status_wb, maj_class="non-forest");igstatus_shrub
 lmfit_shrub<-lm(igstatus_shrub$doy~igstatus_shrub$year)#for all shrub class
 summary(lmfit_shrub)
 
-igstatus_tree<-subset(ig_status_wb, maj_class="Tree");igstatus_tree
+igstatus_tree<-subset(ig_status_wb, maj_class="forest");igstatus_tree
 lmfit_tree<-lm(igstatus_tree$doy~igstatus_tree$year)#for all tree class
 summary(lmfit_tree)
 
@@ -1953,7 +1962,7 @@ summary(lmfit_tree)
 names(ig_status_wb)
 #drop acres and use log of hectares
 ig_status_wb2<- subset(ig_status_wb, select=-c(Acres));names(ig_status_wb2)
-mstack<-melt(ig_status_wb2, id=c("year","month","day","site","maj_class","Fire_Type"));head(mstack)
+mstack<-melt(ig_status_wb2, id=c("year","month","day","Event_ID","maj_class","Incid_Type"));head(mstack)
 
 hplot<-ggplot(mstack, aes(x=value, color=maj_class)) + geom_density(aes(group=maj_class, fill=maj_class), alpha=0.3)+ facet_wrap(~variable, scales="free")
 #geom_vline(aes(xintercept=mean(VPD)),color="blue", linetype="dashed", size=1)
@@ -1984,7 +1993,7 @@ splot +  geom_smooth(method=lm, se=TRUE)#slopes of these regression lines tell u
 ######################Percentile ranks of ignition conditions ##############################
 #compute percentile rank of each observation in the sequence of years before and including (last line) year of fire
 head(ig_status_wb2)
-df_rank<-as.data.frame(lapply(ig_status_wb2[,c(9:ncol(ig_status_wb2))],cume_dist));head(df_rank)#Proportion of all values less than or equal to the current rank.
+df_rank<-as.data.frame(lapply(ig_status_wb2[,c(8:ncol(ig_status_wb2))],cume_dist));head(df_rank)#Proportion of all values less than or equal to the current rank.
 df_rank2<-cbind(ig_status_wb2[,"halog"],df_rank);head(df_rank2)
 plot(df_rank2$RD)
 ##########################################################################################################################
@@ -2009,7 +2018,6 @@ y<-srmasterwf$halog
 
 Data<-data.frame(x,y);Data
 plot(y ~ x, Data)
-
 # fit a loess line
 loess_fit <- loess(y ~ x, Data)
 lines(Data$x, predict(loess_fit), col = "blue")
