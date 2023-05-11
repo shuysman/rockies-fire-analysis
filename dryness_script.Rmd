@@ -40,13 +40,13 @@ library(pROC)
 ## Directory containing metadata file
 data_dir <- "/home/steve/OneDrive/nothern-rockies-dryness"
 ## Directory with csv files from merge-csv.R
-out_dir <- "/media/steve/storage/waterbalance/fire/out/"
+out_dir <- "/media/steve/storage/waterbalance/fire/out/ap23/"
 
 setwd(data_dir)
 
-master <- read_csv("MR_fire_points_extracted.csv") %>%
+master <- read_csv("SR_fire_points_extracted.csv") %>%
     filter(Incid_Type == "Wildfire") %>%
-    ##    rename("maj_veg_cl" = LF20_EVT_5) %>%
+    rename("maj_veg_cl" = LF20_EVT_5) %>%
     ##  maj_class is the majority
     ##    of pixels classification from Landfire 30m pixels in burned
     ##    areas, this data was extracted in QGIS.
@@ -145,10 +145,18 @@ wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj
     mutate(across(vars,
                   percent_rank)) %>%
     collect()
+
+ignitions_forest <- wbdata_percentiles_forest %>% filter(fire == 1)
+nonignitions_forest <- wbdata_percentiles_forest %>% filter(fire == 0)
+ignitions_forest_long <- ignitions_forest %>% pivot_longer(cols = vars)
+ignitions_nonforest <- wbdata_percentiles_nonforest %>% filter(fire == 1)
+nonignitions_nonforest <- wbdata_percentiles_nonforest %>% filter(fire == 0)
+ignitions_nonforest_long <- ignitions_nonforest %>% pivot_longer(cols = vars)
+ignitions_long <- rbind(ignitions_forest_long, ignitions_nonforest_long)
 ```
 
 # ROC Analysis
-```{r forest_roc, include = TRUE, eval = T}
+```{r forest_roc, include = TRUE, eval = T, message = F}
 forest_rd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 forest_vpd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 forest_temp_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
@@ -188,7 +196,7 @@ legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
 text(1,75,"AUC")
 ```
 
-```{r nonforest_roc, eval = T, include = T}
+```{r nonforest_roc, eval = T, include = T, message = F}
 nonforest_rd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_vpd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_temp_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
@@ -228,18 +236,19 @@ legend(35, 75, legend=c(paste("RD ",round(auc(nonforest_rd_roc),1)),
 text(1,75,"AUC")
 ```
 
+demonstrate histogram of conditions associated with fire or no fire to see how much overlap there is.  This helps interpret the ROC
+```{r}
+plot(density(ignitions_forest$D), col="red")
+lines(density(nonignitions_forest$D), col="blue")
+
+plot(density(ignitions_forest$VPD), col="red")
+lines(density(nonignitions_forest$VPD), col="blue")
+```
 
 # ECDF
 
 ```{r ecdf all-vars}
-ignitions_forest <- wbdata_percentiles_forest %>% filter(fire == 1) %>%
-    pivot_longer(cols = vars)
-ignitions_nonforest <- wbdata_percentiles_nonforest %>% filter(fire == 1) %>%
-    pivot_longer(cols = vars)
-
-ignitions <- rbind(ignitions_forest, ignitions_nonforest)
-
-ggplot(ignitions, aes(value, color = name)) +
+ggplot(ignitions_long, aes(value, color = name)) +
     stat_ecdf(pad = FALSE) +
     xlab("Percentile at ignition") +
     facet_grid(~ maj_veg_cl) +
@@ -247,11 +256,14 @@ ggplot(ignitions, aes(value, color = name)) +
 ```
 
 ```{r ecdf cwd-vpd}
-ggplot(filter(ignitions,
+ggplot(filter(ignitions_long,
               name %in% c("VPD", "D")),
        aes(value, color = name)) +
     stat_ecdf(pad = FALSE) +
+    geom_hline(yintercept = .1) +
+    geom_hline(yintercept = .4) +
     xlab("Percentile at ignition") +
+    ylab("Proportion of Fires") +
     facet_grid(~ maj_veg_cl) +
     plot_theme
 ```
