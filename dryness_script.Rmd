@@ -44,10 +44,10 @@ nonforest_q<-quantile(nonforest$doy,c(0,1));nonforest_q#90% of data fall within 
 
 #start and end dates of fire season by vegetation type derived from day of year in min_max table
 doy_min_max<-as.data.frame(rbind(forest_q, nonforest_q));doy_min_max
-forest_start<-as.Date(doy_min_max[1,1], origin = "1984-01-01");forest_start
-nonforest_start<-as.Date(doy_min_max[2,1], origin = "1984-01-01");nonforest_start
-forest_end<-as.Date(doy_min_max[1,2], origin = "2021-01-01");forest_end
-nonforest_end<-as.Date(doy_min_max[2,2], origin = "2021-01-01");nonforest_end
+forest_start<-doy_min_max[1,1]
+nonforest_start<-doy_min_max[2,1]
+forest_end<-doy_min_max[1,2]
+nonforest_end<-doy_min_max[2,2]
 ```
 
 
@@ -104,8 +104,8 @@ time_elapsed_parallel <- proc.time() - start # End clock
 wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
     filter(maj_veg_cl == "forest") %>%
     filter(##Date <= Ig_Date,
-           Date >= forest_start) %>%  ## Filter to fire season
-##           Date <= forest_end) %>%  ## To get this to match results from original dryness_script2, we only filter beginning of season
+           yday(Date) >= forest_start, ## Filter to fire season
+           yday(Date) <= forest_end) %>%  ## To get this to match results from original dryness_script2, we only filter beginning of season
     slice(window + 1:n()) %>%
     mutate(across(vars,
                   percent_rank)) %>%
@@ -114,8 +114,8 @@ wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_ve
 wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
     filter(maj_veg_cl == "non-forest") %>%
     filter(##Date <= Ig_Date,
-           Date >= nonforest_start) %>%  ## Filter to fire season
-           ##Date <= nonforest_end) %>%
+           yday(Date) >= nonforest_start,  ## Filter to fire season
+           yday(Date) <= nonforest_end) %>%
     slice(window + 1:n()) %>%
     mutate(across(vars,
                   percent_rank)) %>%
