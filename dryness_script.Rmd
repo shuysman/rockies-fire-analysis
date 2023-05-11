@@ -127,7 +127,7 @@ time_elapsed_parallel <- proc.time() - start # End clock
 
 wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
     filter(maj_veg_cl == "forest") %>%
-    filter(##Date <= Ig_Date,
+    filter(Date <= Ig_Date,
            yday(Date) >= forest_start, ## Filter to fire season
            yday(Date) <= forest_end) %>%  ## To get this to match results from original dryness_script2, we only filter beginning of season
     slice(window + 1:n()) %>%
@@ -137,40 +137,39 @@ wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_ve
 
 wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
     filter(maj_veg_cl == "non-forest") %>%
-    filter(##Date <= Ig_Date,
+    filter(Date <= Ig_Date,
            yday(Date) >= nonforest_start,  ## Filter to fire season
            yday(Date) <= nonforest_end) %>%
     slice(window + 1:n()) %>%
     mutate(across(vars,
                   percent_rank)) %>%
     collect()
-
 ```
 
 ```{r forest_roc, include = TRUE, eval = T}
-forest_rd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_vpd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_temp_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_soil_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_gdd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_awssm_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_rain_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_aet_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-forest_d_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+forest_rd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+forest_vpd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+forest_temp_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+forest_soil_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+forest_gdd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+forest_awssm_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+forest_rain_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+forest_aet_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+forest_d_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 
 par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
 ##                "s" - creates a square plotting region
 ##                "m" - (the default) creates a maximal plotting region
 par(bg="white")
-plot.roc(col="pink",forest_rd_roc, xlab="False Positive Percentage",ylab="True Positive Percentage",lwd=4, print.auc=FALSE, main = "Forest")
-plot.roc(add=TRUE,col="dark blue",forest_vpd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="vpd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="green",forest_temp_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="temp",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="red",forest_soil_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="soil",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="brown",forest_gdd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="gdd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="magenta",forest_awssm_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="awssm",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="purple",forest_rain_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="rain",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="dark green",forest_aet_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="aet",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="orange",forest_d_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="d",lwd=4, print.auc=FALSE)
+plot.roc(col="pink",forest_rd_roc, lwd=4, print.auc=FALSE, main = "Forest")
+plot.roc(add=TRUE,col="dark blue",forest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="green",forest_temp_roc, main="temp", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="red",forest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="brown",forest_gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="magenta",forest_awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="purple",forest_rain_roc, main="rain", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="dark green",forest_aet_roc, main="aet", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="orange",forest_d_roc, main="d", lwd=4, print.auc=FALSE)
                                         # Add a legend
 legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
                                         #paste("SVP ",round(auc(forest_svp_roc),1)),
