@@ -19,7 +19,7 @@ setwd(data_dir)
 
 master <- read_csv("SR_fire_points_extracted.csv") %>%
     filter(Incid_Type == "Wildfire") %>%
-    rename("maj_veg_cl" = LF20_EVT_5) %>%
+    rename("maj_veg_cl" = LF20_EVT_5) %>% #maj_class is the majority of pixels classification from Landfire 30m pixels in burned aresa
     mutate(maj_veg_cl = case_match(maj_veg_cl,
                                    c("Herb", "Shrub", "Sparse") ~ "non-forest",
                                    "Tree" ~ "forest",
@@ -28,6 +28,8 @@ master <- read_csv("SR_fire_points_extracted.csv") %>%
            doy = yday(Ig_Date))
 
 
+
+### Determine Fire Seasons
 forest<-subset(master, maj_veg_cl=="forest");forest
 forest_q<-quantile(forest$doy,c(0,1));forest_q#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min max
 
@@ -50,7 +52,7 @@ nonforest_end<-as.Date(doy_min_max[2,2], origin = "2021-01-01");nonforest_end
 cores <- 12
 cluster <- new_cluster(cores)
 
-window <- 5 ## Window of days to calculate rolling values
+window <- 7 ## Window of days to calculate rolling values
 vars <- c("RD", "VPD", "T", "SOIL", "AWSSM", "RAIN", "AET", "D", "GDD")
 
 cluster_copy(cluster, "master")
@@ -58,6 +60,7 @@ cluster_copy(cluster, "window")
 cluster_copy(cluster, "vars")
 cluster_library(cluster, 'tidyverse')
 cluster_library(cluster, 'slider')
+cluster_library(cluster, 'zoo')
 
 
 files <- paste0(out_dir, master$filename)
@@ -75,10 +78,14 @@ wbdata <- wbdata %>%
 
 start <- proc.time() # Start clock
 wbdata_smoothed <- select(wbdata, c(Event_ID, Date, RD, VPD, T, SOIL, AWSSM, RAIN, AET, D, GDD)) %>%
+    ## mutate_at(vars[1:5],
+    ##           ~ slide_dbl(.x, mean, .before = window, .after = 0, .complete = TRUE)) %>%
+    ## mutate_at(vars[6:9],
+    ##           ~ slide_dbl(.x, sum, .before = window, .after = 0, .complete = TRUE)) %>%
     mutate_at(vars[1:5],
-              ~ slide_dbl(.x, mean, .before = window, .after = 0, .complete = TRUE)) %>%
+              ~ rollapply(.x, window, mean, by = 1, partial = FALSE, fill = NA, align = "right")) %>%
     mutate_at(vars[6:9],
-              ~ slide_dbl(.x, sum, .before = window, .after = 0, .complete = TRUE)) %>%
+              ~ rollapply(.x, window, sum, by = 1, partial = FALSE, fill = NA, align = "right")) %>%
     collect()
 time_elapsed_parallel <- proc.time() - start # End clock
 
@@ -91,13 +98,26 @@ wbdata_smoothed <- left_join(wbdata_smoothed, select(master,
 
 wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
     filter(maj_veg_cl == "forest") %>%
-    filter(Date <= Ig_Date,
-           Date >= forest_start,  ## Filter to fire season
-           Date <= forest_end) %>%
+    filter(##Date <= Ig_Date,
+           Date >= forest_start) %>%  ## Filter to fire season
+##           Date <= forest_end) %>%  ## To get this to match results from original dryness_script2, we only filter beginning of season
     slice(window + 1:n()) %>%
     mutate(across(vars,
                   percent_rank))
 
+
+wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
+    filter(maj_veg_cl == "non-forest") %>%
+    filter(##Date <= Ig_Date,
+           Date >= nonforest_start) %>%  ## Filter to fire season
+           ##Date <= nonforest_end) %>%
+    slice(window + 1:n()) %>%
+    mutate(across(vars,
+                  percent_rank))
+
+```
+
+```{r forest_roc, include = TRUE, eval = T}
 forest_rd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
 forest_vpd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
 forest_temp_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
@@ -135,19 +155,9 @@ legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
        bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
        lty=1, lwd=4, text.font=2)#cex=0.9,
 text(1,75,"AUC")
+```
 
-
-
-
-wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
-    filter(maj_veg_cl == "non-forest") %>%
-    filter(Date <= Ig_Date,
-           Date >= forest_start,  ## Filter to fire season
-           Date <= forest_end) %>%
-    slice(window + 1:n()) %>%
-    mutate(across(vars,
-                  percent_rank))
-
+```{r nonforest_roc, eval = T, include = T}
 nonforest_rd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_vpd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_temp_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
@@ -186,8 +196,6 @@ legend(35, 75, legend=c(paste("RD ",round(auc(nonforest_rd_roc),1)),
        lty=1, lwd=4, text.font=2)#cex=0.9,
 text(1,75,"AUC")
 ```
-
-
 
 # Questions
 - Changing date we rank percentiles changes results.  Original analysis only looked at fire season.  Do we want whole year or just fire season?
