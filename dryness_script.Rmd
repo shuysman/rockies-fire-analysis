@@ -12,14 +12,18 @@ library(zoo)
 library(slider)
 library(pROC)
 
+## Directory containing metadata file
 data_dir <- "/home/steve/OneDrive/nothern-rockies-dryness"
-out_dir <- "/media/steve/storage/waterbalance/fire/out/ap23/"
+out_dir <- "/media/steve/storage/waterbalance/fire/out/"
 
 setwd(data_dir)
 
-master <- read_csv("SR_fire_points_extracted.csv") %>%
+master <- read_csv("MR_fire_points_extracted.csv") %>%
     filter(Incid_Type == "Wildfire") %>%
-    rename("maj_veg_cl" = LF20_EVT_5) %>% #maj_class is the majority of pixels classification from Landfire 30m pixels in burned aresa
+    ##    rename("maj_veg_cl" = LF20_EVT_5) %>%
+    ##  maj_class is the majority
+    ##    of pixels classification from Landfire 30m pixels in burned
+    ##    areas, this data was extracted in QGIS.
     mutate(maj_veg_cl = case_match(maj_veg_cl,
                                    c("Herb", "Shrub", "Sparse") ~ "non-forest",
                                    "Tree" ~ "forest",
@@ -27,9 +31,11 @@ master <- read_csv("SR_fire_points_extracted.csv") %>%
            filename = paste0(Event_ID, ".csv"),
            doy = yday(Ig_Date))
 
+```
 
 
-### Determine Fire Seasons
+# Determine Fire Seasons
+```{r}
 forest<-subset(master, maj_veg_cl=="forest");forest
 forest_q<-quantile(forest$doy,c(0,1));forest_q#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min max
 
@@ -42,22 +48,25 @@ forest_start<-as.Date(doy_min_max[1,1], origin = "1984-01-01");forest_start
 nonforest_start<-as.Date(doy_min_max[2,1], origin = "1984-01-01");nonforest_start
 forest_end<-as.Date(doy_min_max[1,2], origin = "2021-01-01");forest_end
 nonforest_end<-as.Date(doy_min_max[2,2], origin = "2021-01-01");nonforest_end
-
 ```
+
 
 # Read in sites
 
 ```{r}
-
-cores <- 12
+cores <- parallel::detectCores() - 4
 cluster <- new_cluster(cores)
 
-window <- 7 ## Window of days to calculate rolling values
+window <- 14 ## Window of days to calculate rolling values
 vars <- c("RD", "VPD", "T", "SOIL", "AWSSM", "RAIN", "AET", "D", "GDD")
 
 cluster_copy(cluster, "master")
 cluster_copy(cluster, "window")
 cluster_copy(cluster, "vars")
+cluster_copy(cluster, "forest_start")
+cluster_copy(cluster, "nonforest_start")
+cluster_copy(cluster, "forest_end")
+cluster_copy(cluster, "nonforest_end")
 cluster_library(cluster, 'tidyverse')
 cluster_library(cluster, 'slider')
 cluster_library(cluster, 'zoo')
@@ -67,17 +76,21 @@ files <- paste0(out_dir, master$filename)
 cluster_assign_partition(cluster, files = files)
 cluster_send(cluster, wbdata <- vroom::vroom(files, id = "PATH"))
 wbdata <- party_df(cluster, "wbdata")
+master <- party_df(cluster, "master")
 
 wbdata <- wbdata %>%
-    mutate(Event_ID = str_extract(PATH, '(?<=ap23/).*(?=\\.csv)')) %>% ### Need to fix this Regex later
+    mutate(Event_ID = str_extract(PATH, '(?<=/)[^/]*(?=\\.[^./]+$)')) %>%
     group_by(Event_ID) %>%
     mutate(RD = 100 - RH,
            WHC = max(SOIL), ## Guestimate soil WHC from max soil moisture observed
-           AWSSM = WHC - SOIL)
-
+           AWSSM = WHC - SOIL) %>%
+    left_join(select(master,
+                     Event_ID, Ig_Date, maj_veg_cl),
+              by = "Event_ID") %>%
+    mutate(fire = if_else(Date == Ig_Date, 1, 0)) 
 
 start <- proc.time() # Start clock
-wbdata_smoothed <- select(wbdata, c(Event_ID, Date, RD, VPD, T, SOIL, AWSSM, RAIN, AET, D, GDD)) %>%
+wbdata_smoothed <- select(wbdata, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
     ## mutate_at(vars[1:5],
     ##           ~ slide_dbl(.x, mean, .before = window, .after = 0, .complete = TRUE)) %>%
     ## mutate_at(vars[6:9],
@@ -85,16 +98,8 @@ wbdata_smoothed <- select(wbdata, c(Event_ID, Date, RD, VPD, T, SOIL, AWSSM, RAI
     mutate_at(vars[1:5],
               ~ rollapply(.x, window, mean, by = 1, partial = FALSE, fill = NA, align = "right")) %>%
     mutate_at(vars[6:9],
-              ~ rollapply(.x, window, sum, by = 1, partial = FALSE, fill = NA, align = "right")) %>%
-    collect()
+              ~ rollapply(.x, window, sum, by = 1, partial = FALSE, fill = NA, align = "right")) 
 time_elapsed_parallel <- proc.time() - start # End clock
-
-wbdata_smoothed <- left_join(wbdata_smoothed, select(master,
-                                                     Event_ID, Ig_Date, maj_veg_cl),
-                             by = "Event_ID") %>%
-    mutate(fire = if_else(Date == Ig_Date,
-                          1,
-                          0)) 
 
 wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
     filter(maj_veg_cl == "forest") %>%
@@ -103,8 +108,8 @@ wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_ve
 ##           Date <= forest_end) %>%  ## To get this to match results from original dryness_script2, we only filter beginning of season
     slice(window + 1:n()) %>%
     mutate(across(vars,
-                  percent_rank))
-
+                  percent_rank)) %>%
+    collect()
 
 wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
     filter(maj_veg_cl == "non-forest") %>%
@@ -113,7 +118,8 @@ wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj
            ##Date <= nonforest_end) %>%
     slice(window + 1:n()) %>%
     mutate(across(vars,
-                  percent_rank))
+                  percent_rank)) %>%
+    collect()
 
 ```
 
