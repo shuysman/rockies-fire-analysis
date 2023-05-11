@@ -240,7 +240,7 @@ ignitions_nonforest <- wbdata_percentiles_nonforest %>% filter(fire == 1) %>%
 ignitions <- rbind(ignitions_forest, ignitions_nonforest)
 
 ggplot(ignitions, aes(value, color = name)) +
-    stat_ecdf() +
+    stat_ecdf(pad = FALSE) +
     xlab("Percentile at ignition") +
     facet_grid(~ maj_veg_cl) +
     plot_theme
@@ -250,7 +250,7 @@ ggplot(ignitions, aes(value, color = name)) +
 ggplot(filter(ignitions,
               name %in% c("VPD", "D")),
        aes(value, color = name)) +
-    stat_ecdf() +
+    stat_ecdf(pad = FALSE) +
     xlab("Percentile at ignition") +
     facet_grid(~ maj_veg_cl) +
     plot_theme
