@@ -188,29 +188,29 @@ text(1,75,"AUC")
 ```
 
 ```{r nonforest_roc, eval = T, include = T}
-nonforest_rd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_vpd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_temp_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_soil_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_gdd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_awssm_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_rain_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_aet_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_d_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", col="#377eb8", lwd=4, print.auc=TRUE)
+nonforest_rd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+nonforest_vpd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+nonforest_temp_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+nonforest_soil_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+nonforest_gdd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+nonforest_awssm_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+nonforest_rain_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+nonforest_aet_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+nonforest_d_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 
 par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
 ##                "s" - creates a square plotting region
 ##                "m" - (the default) creates a maximal plotting region
 par(bg="white")
-plot.roc(col="pink",nonforest_rd_roc, xlab="False Positive Percentage",ylab="True Positive Percentage",lwd=4, print.auc=FALSE, main = "Nonforest")
-plot.roc(add=TRUE,col="dark blue",nonforest_vpd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="vpd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="green",nonforest_temp_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="temp",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="red",nonforest_soil_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="soil",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="brown",nonforest_gdd_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="gdd",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="magenta",nonforest_awssm_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="awssm",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="purple",nonforest_rain_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="rain",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="dark green",nonforest_aet_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="aet",lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="orange",nonforest_d_roc, xlab="fraction of burned identified correctly",ylab="fraction of unburned correctly identified",main="d",lwd=4, print.auc=FALSE)
+plot.roc(col="pink",nonforest_rd_roc, lwd=4, print.auc=FALSE, main = "Nonforest")
+plot.roc(add=TRUE,col="dark blue",nonforest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="green",nonforest_temp_roc, main="temp", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="red",nonforest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="brown",nonforest_gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="magenta",nonforest_awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="purple",nonforest_rain_roc, main="rain", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="dark green",nonforest_aet_roc, main="aet", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="orange",nonforest_d_roc, main="d", lwd=4, print.auc=FALSE)
                                         # Add a legend
 legend(35, 75, legend=c(paste("RD ",round(auc(nonforest_rd_roc),1)),
                                         #paste("SVP ",round(auc(nonforest_svp_roc),1)),
