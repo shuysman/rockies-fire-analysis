@@ -21,12 +21,6 @@ csl: global-ecology-and-biogeography.csl
     + join Mike's data and historical gridmet data into one csv for each Event_ID
 	+ use these csvs for input to this script
 
-# Settings
-```{r settings}
-plot_theme <- theme_bw() +
-    theme(text = element_text(size = 22))
-```
-
 
 # Master dataframe
 Read in file containing meta data for fires of interest.
@@ -46,7 +40,8 @@ setwd(data_dir)
 
 master <- read_csv("SR_fire_points_extracted.csv") %>%
     filter(Incid_Type == "Wildfire") %>%
-    rename("maj_veg_cl" = LF20_EVT_5) %>%
+    rename("maj_veg_cl" = LF20_EVT_5,
+           "Acres" = BurnBndAc) %>%
     ##  maj_class is the majority
     ##    of pixels classification from Landfire 30m pixels in burned
     ##    areas, this data was extracted in QGIS.
@@ -59,17 +54,24 @@ master <- read_csv("SR_fire_points_extracted.csv") %>%
 
 ```
 
+# Settings
+```{r settings}
+plot_theme <- theme_bw() +
+    theme(text = element_text(size = 22))
+```
+
+
 
 # Determine Fire Season
 ```{r fire-seasons}
-forest<-subset(master, maj_veg_cl=="forest");forest
-forest_q<-quantile(forest$doy,c(0,1));forest_q#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min max
+forest<-subset(master, maj_veg_cl=="forest")
+forest_q<-quantile(forest$doy,c(0,1))#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min max
 
-nonforest<-subset(master, maj_veg_cl=="non-forest");nonforest
-nonforest_q<-quantile(nonforest$doy,c(0,1));nonforest_q#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min
+nonforest<-subset(master, maj_veg_cl=="non-forest")
+nonforest_q<-quantile(nonforest$doy,c(0,1))#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min
 
 #start and end dates of fire season by vegetation type derived from day of year in min_max table
-doy_min_max<-as.data.frame(rbind(forest_q, nonforest_q));doy_min_max
+doy_min_max<-as.data.frame(rbind(forest_q, nonforest_q))
 forest_start<-doy_min_max[1,1]
 nonforest_start<-doy_min_max[2,1]
 forest_end<-doy_min_max[1,2]
@@ -110,12 +112,12 @@ wbdata <- wbdata %>%
            WHC = max(SOIL), ## Guestimate soil WHC from max soil moisture observed
            AWSSM = WHC - SOIL) %>%
     left_join(select(master,
-                     Event_ID, Ig_Date, maj_veg_cl),
+                     Event_ID, Ig_Date, maj_veg_cl, Acres),
               by = "Event_ID") %>%
     mutate(fire = if_else(Date == Ig_Date, 1, 0)) 
 
 start <- proc.time() # Start clock
-wbdata_smoothed <- select(wbdata, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
+wbdata_smoothed <- select(wbdata, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
     ## mutate_at(vars[1:5],
     ##           ~ slide_dbl(.x, mean, .before = window, .after = 0, .complete = TRUE)) %>%
     ## mutate_at(vars[6:9],
@@ -126,7 +128,7 @@ wbdata_smoothed <- select(wbdata, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, v
               ~ rollapply(.x, window, sum, by = 1, partial = FALSE, fill = NA, align = "right")) 
 time_elapsed_parallel <- proc.time() - start # End clock
 
-wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
+wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
     filter(maj_veg_cl == "forest") %>%
     filter(Date <= Ig_Date,
            yday(Date) >= forest_start, ## Filter to fire season
@@ -136,7 +138,7 @@ wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_ve
                   percent_rank)) %>%
     collect()
 
-wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, fire, Date, vars)) %>%
+wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
     filter(maj_veg_cl == "non-forest") %>%
     filter(Date <= Ig_Date,
            yday(Date) >= nonforest_start,  ## Filter to fire season
@@ -237,12 +239,36 @@ text(1,75,"AUC")
 ```
 
 demonstrate histogram of conditions associated with fire or no fire to see how much overlap there is.  This helps interpret the ROC
-```{r}
+```{r density-hist}
 plot(density(ignitions_forest$D), col="red")
 lines(density(nonignitions_forest$D), col="blue")
 
 plot(density(ignitions_forest$VPD), col="red")
 lines(density(nonignitions_forest$VPD), col="blue")
+```
+
+Determine contribution of various parameters to burned area
+```{r burned-area-contrib}
+library(hier.part)
+
+y<-as.vector(ignitions_nonforest[,"Acres"])
+xcann<-subset(ignitions_nonforest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD"))
+hier.part(y,xcann,barplot=TRUE)
+
+y<-as.vector(ignitions_forest[,"Acres"])
+xcann<-subset(ignitions_forest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD"))
+hier.part(y,xcann,barplot=TRUE)
+```
+
+Plots of wb percentile vs. area burned show weak relationships
+```{r wb-vs-area, fig.width = 8}
+ggplot(ignitions_long, aes(x=value, y=Acres, colour=factor(maj_veg_cl))) +
+    geom_point(size=3) +
+    geom_smooth(method="lm", se=FALSE) +
+    facet_wrap(~name, scales="fixed") +
+    labs(title = "", x = "Percentile at Week of Ignition", y = "Area burned (ln Ha)", color = NULL)+
+    scale_color_manual(values=c("red","black")) +
+    plot_theme
 ```
 
 # ECDF
