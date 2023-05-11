@@ -3,12 +3,7 @@ title: 'Rockies Fire Analysis'
 author: "Stephen Huysman"
 fontsize: 12pt 
 bibliography: fire.bib
-output:
-  pdf_document:
-    toc: true
-    pandoc_args: ["--biblatex"]
-header-includes:
-  - \usepackage[]{biblatex}
+csl: global-ecology-and-biogeography.csl
 ---
 # Preprocessing
 1. Get MTBS database
@@ -26,9 +21,16 @@ header-includes:
     + join Mike's data and historical gridmet data into one csv for each Event_ID
 	+ use these csvs for input to this script
 
+# Settings
+```{r settings}
+plot_theme <- theme_bw() +
+    theme(text = element_text(size = 22))
+```
+
+
 # Master dataframe
 Read in file containing meta data for fires of interest.
-```{r}
+```{r metadata}
 library(tidyverse)
 library(multidplyr)
 library(zoo)
@@ -78,6 +80,7 @@ nonforest_end<-doy_min_max[2,2]
 # Read in sites
 
 ```{r}
+```{r analysis}
 cores <- parallel::detectCores() - 4
 cluster <- new_cluster(cores)
 
