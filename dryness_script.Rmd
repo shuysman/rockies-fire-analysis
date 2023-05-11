@@ -1,7 +1,30 @@
 ---
 title: 'Rockies Fire Analysis'
+author: "Stephen Huysman"
 fontsize: 12pt 
+bibliography: fire.bib
+output:
+  pdf_document:
+    toc: true
+    pandoc_args: ["--biblatex"]
+header-includes:
+  - \usepackage[]{biblatex}
 ---
+# Preprocessing
+1. Get MTBS database
+  + Extract fire polys by location of interest (Ecoregion)
+  + Create centroids for each poly (Pole of inaccessability in QGIS)
+2. Get LANDFIRE EVT (Expected Vegetation Type data)
+  + Use statistics tool in QGIS to get mean, median, and mode EVT by pixel count.  Only mode is used going further.
+3. Create master csv file with points of interest.  Needs columns 'Event_ID', 'Incid_Type', 'Ig_Date', 'Lon', 'Lat, and 'LF20_EVT_5' (Landfire 2020 EVT type).  Further analysis can look at finer resolution LANDFIRE vegetation types offered.  
+4. Get Historical WB data for each centroid from Mike
+5. Get Historical gridmet climate data for Each centroid
+  + gridmet-historical.R - download gridmet data for each point
+	+ pr, tmmx, tmmn, rmax, rmin, vpd
+	+ creates one dir 'gridmet-$var' for each variable
+  + merge-csv.R
+    + join Mike's data and historical gridmet data into one csv for each Event_ID
+	+ use these csvs for input to this script
 
 # Master dataframe
 Read in file containing meta data for fires of interest.
@@ -14,6 +37,7 @@ library(pROC)
 
 ## Directory containing metadata file
 data_dir <- "/home/steve/OneDrive/nothern-rockies-dryness"
+## Directory with csv files from merge-csv.R
 out_dir <- "/media/steve/storage/waterbalance/fire/out/"
 
 setwd(data_dir)
@@ -79,7 +103,7 @@ wbdata <- party_df(cluster, "wbdata")
 master <- party_df(cluster, "master")
 
 wbdata <- wbdata %>%
-    mutate(Event_ID = str_extract(PATH, '(?<=/)[^/]*(?=\\.[^./]+$)')) %>%
+    mutate(Event_ID = str_extract(PATH, '(?<=/)[^/]*(?=\\.[^./]+$)')) %>% ## Extract file name without extension, use as Event_ID
     group_by(Event_ID) %>%
     mutate(RD = 100 - RH,
            WHC = max(SOIL), ## Guestimate soil WHC from max soil moisture observed
