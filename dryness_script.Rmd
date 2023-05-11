@@ -1,7 +1,7 @@
 ---
 title: 'Rockies Fire Analysis'
 author: "Stephen Huysman"
-fontsize: 12pt 
+fontsize: 10pt 
 bibliography: fire.bib
 csl: global-ecology-and-biogeography.csl
 ---
@@ -24,7 +24,7 @@ csl: global-ecology-and-biogeography.csl
 
 # Master dataframe
 Read in file containing meta data for fires of interest.
-```{r metadata}
+```{r metadata, include = F}
 library(tidyverse)
 library(multidplyr)
 library(zoo)
@@ -55,7 +55,7 @@ master <- read_csv("SR_fire_points_extracted.csv") %>%
 ```
 
 # Settings
-```{r settings}
+```{r settings, include = F}
 plot_theme <- theme_bw() +
     theme(text = element_text(size = 22))
 ```
@@ -63,7 +63,7 @@ plot_theme <- theme_bw() +
 
 
 # Determine Fire Season
-```{r fire-seasons}
+```{r fire-seasons, include = F}
 forest<-subset(master, maj_veg_cl=="forest")
 forest_q<-quantile(forest$doy,c(0,1))#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min max
 
@@ -80,7 +80,7 @@ nonforest_end<-doy_min_max[2,2]
 
 
 # Compute Percentiles
-```{r analysis}
+```{r analysis, include = F}
 cores <- parallel::detectCores() - 4
 cluster <- new_cluster(cores)
 
@@ -158,7 +158,7 @@ ignitions_long <- rbind(ignitions_forest_long, ignitions_nonforest_long)
 ```
 
 # ROC Analysis
-```{r forest_roc, include = TRUE, eval = T, message = F}
+```{r forest_roc, include = TRUE, eval = T, message = F, echo = F}
 forest_rd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 forest_vpd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 forest_temp_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
@@ -198,7 +198,7 @@ legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
 text(1,75,"AUC")
 ```
 
-```{r nonforest_roc, eval = T, include = T, message = F}
+```{r nonforest_roc, eval = T, message = F, echo = F}
 nonforest_rd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_vpd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_temp_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
@@ -239,7 +239,7 @@ text(1,75,"AUC")
 ```
 
 demonstrate histogram of conditions associated with fire or no fire to see how much overlap there is.  This helps interpret the ROC
-```{r density-hist}
+```{r density-hist, echo = F, message = F}
 plot(density(ignitions_forest$D), col="red")
 lines(density(nonignitions_forest$D), col="blue")
 
@@ -248,7 +248,7 @@ lines(density(nonignitions_forest$VPD), col="blue")
 ```
 
 Determine contribution of various parameters to burned area
-```{r burned-area-contrib}
+```{r burned-area-contrib, echo = F, message = F}
 library(hier.part)
 
 y<-as.vector(ignitions_nonforest[,"Acres"])
@@ -261,7 +261,7 @@ hier.part(y,xcann,barplot=TRUE)
 ```
 
 Plots of wb percentile vs. area burned show weak relationships
-```{r wb-vs-area, fig.width = 8}
+```{r wb-vs-area, fig.width = 8, echo = F, message = F}
 ggplot(ignitions_long, aes(x=value, y=Acres, colour=factor(maj_veg_cl))) +
     geom_point(size=3) +
     geom_smooth(method="lm", se=FALSE) +
@@ -273,7 +273,7 @@ ggplot(ignitions_long, aes(x=value, y=Acres, colour=factor(maj_veg_cl))) +
 
 # ECDF
 
-```{r ecdf all-vars}
+```{r ecdf-all-vars, echo = F}
 ggplot(ignitions_long, aes(value, color = name)) +
     stat_ecdf(pad = FALSE) +
     xlab("Percentile at ignition") +
@@ -281,7 +281,7 @@ ggplot(ignitions_long, aes(value, color = name)) +
     plot_theme
 ```
 
-```{r ecdf cwd-vpd}
+```{r ecdf-cwd-vpd, echo = F} 
 ggplot(filter(ignitions_long,
               name %in% c("VPD", "D")),
        aes(value, color = name)) +
