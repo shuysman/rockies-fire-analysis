@@ -21,24 +21,32 @@ csl: global-ecology-and-biogeography.csl
     + join Mike's data and historical gridmet data into one csv for each Event_ID
 	+ use these csvs for input to this script
 
-
-# Master dataframe
-Read in file containing meta data for fires of interest.
-```{r metadata, include = F}
+# Settings
+```{r settings, include = F}
 library(tidyverse)
 library(multidplyr)
 library(zoo)
 library(slider)
 library(pROC)
 
+plot_theme <- theme_bw() +
+    theme(text = element_text(size = 22))
+
+
 ## Directory containing metadata file
 data_dir <- "/home/steve/OneDrive/nothern-rockies-dryness"
 ## Directory with csv files from merge-csv.R
 out_dir <- "/media/steve/storage/waterbalance/fire/out/ap23/"
 
+master_csv <- "SR_fire_points_extracted.csv"
+```
+
+# Master dataframe
+Read in file containing meta data for fires of interest.
+```{r metadata, include = F}
 setwd(data_dir)
 
-master <- read_csv("SR_fire_points_extracted.csv") %>%
+master <- read_csv(master_csv) %>%
     filter(Incid_Type == "Wildfire") %>%
     rename("maj_veg_cl" = LF20_EVT_5,
            "Acres" = BurnBndAc) %>%
@@ -51,16 +59,7 @@ master <- read_csv("SR_fire_points_extracted.csv") %>%
                                    c("Agriculture", "Water") ~ "other"),
            filename = paste0(Event_ID, ".csv"),
            doy = yday(Ig_Date))
-
 ```
-
-# Settings
-```{r settings, include = F}
-plot_theme <- theme_bw() +
-    theme(text = element_text(size = 22))
-```
-
-
 
 # Determine Fire Season
 ```{r fire-seasons, include = F}
@@ -77,7 +76,6 @@ nonforest_start<-doy_min_max[2,1]
 forest_end<-doy_min_max[1,2]
 nonforest_end<-doy_min_max[2,2]
 ```
-
 
 # Compute Percentiles
 ```{r analysis, include = F}
