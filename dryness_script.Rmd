@@ -66,12 +66,6 @@ master <- read_csv(master_csv) %>%
 ```{r map}
 library(sp)
 library(sf)
-library(maps)
-
-## coords <- data.frame(
-##     x = master$x,
-##     y = master$y
-## )
 
 spdf <- SpatialPointsDataFrame(coords = coords, data = master)
 
@@ -80,8 +74,12 @@ ecoregion <- ecoregions %>% filter(US_L3NAME == "Southern Rockies")
 
 ggplot(ecoregion) +
     geom_sf() +
-    geom_point(data = master, aes(x, y))
+    geom_point(data = master, aes(x, y, color = maj_veg_cl))
+
+summary_tbl <- master %>% group_by(maj_veg_cl) %>% summarise(n = n())
+knitr::kable(summary_tbl)
 ```
+
 
 # Determine Fire Season
 ```{r fire-seasons, include = F}
