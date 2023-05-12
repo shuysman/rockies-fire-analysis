@@ -22,7 +22,7 @@ csl: global-ecology-and-biogeography.csl
 	+ use these csvs for input to this script
 
 # Settings
-```{r settings, include = F}
+```{r settings, include = T}
 library(tidyverse)
 library(multidplyr)
 library(zoo)
@@ -59,6 +59,28 @@ master <- read_csv(master_csv) %>%
                                    c("Agriculture", "Water") ~ "other"),
            filename = paste0(Event_ID, ".csv"),
            doy = yday(Ig_Date))
+```
+
+# Map
+
+```{r map}
+library(sp)
+library(sf)
+library(maps)
+
+## coords <- data.frame(
+##     x = master$x,
+##     y = master$y
+## )
+
+spdf <- SpatialPointsDataFrame(coords = coords, data = master)
+
+ecoregions <- st_transform(read_sf("/home/steve/OneDrive/nothern-rockies-dryness/data/us_eco_l3/us_eco_l3.shp"), crs = 4326)
+ecoregion <- ecoregions %>% filter(US_L3NAME == "Southern Rockies")
+
+ggplot(ecoregion) +
+    geom_sf() +
+    geom_point(data = master, aes(x, y))
 ```
 
 # Determine Fire Season
