@@ -284,11 +284,20 @@ ggplot(ignitions_long, aes(x=value, y=Acres, colour=factor(maj_veg_cl))) +
     geom_point(size=3) +
     geom_smooth(method="lm", se=FALSE) +
     facet_wrap(~name, scales="fixed") +
-    labs(title = "", x = "Percentile at Week of Ignition", y = "Area burned (ln Ha)", color = NULL)+
+    labs(title = "", x = "Percentile at Week of Ignition", y = "Area burned (Acres)", color = NULL)+
     scale_color_manual(values=c("red","black")) +
     plot_theme
 ```
 
+```{r wb-vs-logarea, fig.width = 8, echo = F, message = F}
+ggplot(ignitions_long, aes(x=value, y=log(Acres), colour=factor(maj_veg_cl))) +
+    geom_point(size=3) +
+    geom_smooth(method="lm", se=FALSE) +
+    facet_wrap(~name, scales="fixed") +
+    labs(title = "", x = "Percentile at Week of Ignition", y = "Area burned (log Acres)", color = NULL)+
+    scale_color_manual(values=c("red","black")) +
+    plot_theme
+```
 # ECDF
 
 ```{r ecdf-all-vars, echo = F}
