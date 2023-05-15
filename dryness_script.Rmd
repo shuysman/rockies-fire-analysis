@@ -471,8 +471,3 @@ ggplot(filter(ignitions_long,
     facet_grid(~ maj_veg_cl) +
     plot_theme
 ```
-
-# Questions
-## Modeling
-- are we violating indepdencence assumption for logistic regression?
-- should we be using test data set to fit models?
