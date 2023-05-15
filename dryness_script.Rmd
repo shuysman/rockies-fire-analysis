@@ -5,6 +5,45 @@ fontsize: 10pt
 bibliography: fire.bib
 csl: global-ecology-and-biogeography.csl
 ---
+# Settings
+```{r settings, include = T}
+library(tidyverse)
+library(multidplyr)
+library(zoo)
+library(slider)
+library(pROC)
+
+plot_theme <- theme_bw() +
+    theme(text = element_text(size = 22))
+
+region_name <- "Southern Rockies"  ## Set region name, should be same as L3 Ecoregion name
+
+settings <- tribble(
+    ~region, ~params,
+    "Southern Rockies", list(data_dir =  "/home/steve/OneDrive/nothern-rockies-dryness",
+                           out_dir =  "/media/steve/storage/waterbalance/fire/out/ap23/",
+                           master_csv =  "SR_fire_points_extracted.csv"
+                           ),
+    "Middle Rockies", list(data_dir =  "/home/steve/OneDrive/nothern-rockies-dryness",
+                           out_dir =  "/media/steve/storage/waterbalance/fire/out/",
+                           master_csv =  "MR_fire_points_extracted.csv"
+                           ),
+)
+
+
+settings <- settings %>% filter(region == region_name) 
+
+## Directory containing metadata file
+data_dir <- settings$params[[1]]$data_dir
+
+## Directory with csv files from merge-csv.R
+out_dir <- settings$params[[1]]$out_dir
+
+master_csv <- settings$params[[1]]$master_csv
+```
+
+# `r region_name`
+
 # Preprocessing
 1. Get MTBS database
   + Extract fire polys by location of interest (Ecoregion)
@@ -21,26 +60,6 @@ csl: global-ecology-and-biogeography.csl
     + join Mike's data and historical gridmet data into one csv for each Event_ID
 	+ use these csvs for input to this script
 
-# Settings
-```{r settings, include = T}
-library(tidyverse)
-library(multidplyr)
-library(zoo)
-library(slider)
-library(pROC)
-
-plot_theme <- theme_bw() +
-    theme(text = element_text(size = 22))
-
-
-## Directory containing metadata file
-data_dir <- "/home/steve/OneDrive/nothern-rockies-dryness"
-## Directory with csv files from merge-csv.R
-out_dir <- "/media/steve/storage/waterbalance/fire/out/ap23/"
-
-master_csv <- "SR_fire_points_extracted.csv"
-```
-
 # Master dataframe
 Read in file containing meta data for fires of interest.
 ```{r metadata, include = F}
@@ -48,6 +67,7 @@ setwd(data_dir)
 
 master <- read_csv(master_csv) %>%
     filter(Incid_Type == "Wildfire") %>%
+##    filter(year(Ig_Date) <= 2014) %>%
     rename("maj_veg_cl" = LF20_EVT_5,
            "Acres" = BurnBndAc) %>%
     ##  maj_class is the majority
@@ -63,14 +83,18 @@ master <- read_csv(master_csv) %>%
 
 # Map
 
-```{r map}
+```{r map, fig.width = 8, fig.height = 8}
 library(sp)
 library(sf)
 
+coords <- data.frame(
+    x = master$x,
+    y = master$y
+)
 spdf <- SpatialPointsDataFrame(coords = coords, data = master)
 
 ecoregions <- st_transform(read_sf("/home/steve/OneDrive/nothern-rockies-dryness/data/us_eco_l3/us_eco_l3.shp"), crs = 4326)
-ecoregion <- ecoregions %>% filter(US_L3NAME == "Southern Rockies")
+ecoregion <- ecoregions %>% filter(US_L3NAME == region_name)
 
 ggplot(ecoregion) +
     geom_sf() +
@@ -82,7 +106,7 @@ knitr::kable(summary_tbl)
 
 
 # Determine Fire Season
-```{r fire-seasons, include = F}
+```{r fire-seasons, include = T}
 forest<-subset(master, maj_veg_cl=="forest")
 forest_q<-quantile(forest$doy,c(0,1))#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min max
 
@@ -95,6 +119,8 @@ forest_start<-doy_min_max[1,1]
 nonforest_start<-doy_min_max[2,1]
 forest_end<-doy_min_max[1,2]
 nonforest_end<-doy_min_max[2,2]
+
+knitr::kable(doy_min_max)
 ```
 
 # Compute Percentiles
@@ -102,7 +128,7 @@ nonforest_end<-doy_min_max[2,2]
 cores <- parallel::detectCores() - 4
 cluster <- new_cluster(cores)
 
-window <- 14 ## Window of days to calculate rolling values
+window <- 7 ## Window of days to calculate rolling values
 vars <- c("RD", "VPD", "T", "SOIL", "AWSSM", "RAIN", "AET", "D", "GDD")
 
 cluster_copy(cluster, "master")
@@ -173,10 +199,134 @@ ignitions_nonforest <- wbdata_percentiles_nonforest %>% filter(fire == 1)
 nonignitions_nonforest <- wbdata_percentiles_nonforest %>% filter(fire == 0)
 ignitions_nonforest_long <- ignitions_nonforest %>% pivot_longer(cols = vars)
 ignitions_long <- rbind(ignitions_forest_long, ignitions_nonforest_long)
+
+
 ```
 
+# Corrplot
+
+```{r}
+library(GGally)
+
+ggcorr(wbdata_percentiles_forest, method = c("everything", "pearson")) 
+```
+
+<!-- # Autocorrelation -->
+
+<!-- ```{r} -->
+<!-- wbdata %>% collect() -->
+
+<!-- acf(wbdata %>% filter(Event_ID == "CO3942710800419870707") %>% select(P:AWSSM, -Event_ID)) -->
+<!-- ``` -->
+
 # ROC Analysis
-```{r forest_roc, include = TRUE, eval = T, message = F, echo = F}
+
+```{r forest_roc, fig.width = 8, fig.height = 8, include = TRUE, eval = T, message = F, echo = F}
+## library(lme4)
+
+## #divide dataset into training and test set
+## set.seed(1)
+## sample <- sample(c(TRUE, FALSE), nrow(wbdata_percentiles_forest), replace=TRUE, prob=c(0.7,0.3))
+## train <- wbdata_percentiles_forest[sample, ]
+## test <- wbdata_percentiles_forest[!sample, ]
+
+## df.list <- train %>%
+##     group_by(name) %>%
+##     group_split(name)
+
+## map_function <- function(x){
+##   pROC::roc(
+##     data = x,
+##     response = fire,
+##     predictor = value
+##   )
+## }
+
+## roc.list <- map(df.list, map_function)
+
+## ggroc(roc.list, alpha = 0.5) +
+##   theme_bw()
+
+
+## forest_RD_mm <- glmer(fire ~ RD + (1 | Event_ID), family = "binomial", data = train)
+## forest_VPD_mm <- glmer(fire ~ VPD + (1 | Event_ID), family = "binomial", data = train)
+## forest_T_mm <- glmer(fire ~ T + (1 | Event_ID), family = "binomial", data = train)
+## forest_SOIL_mm <- glmer(fire ~ SOIL + (1 | Event_ID), family = "binomial", data = train)
+## forest_GDD_mm <- glmer(fire ~ GDD + (1 | Event_ID), family = "binomial", data = train)
+## forest_AWSSM_mm <- glmer(fire ~ AWSSM + (1 | Event_ID), family = "binomial", data = train)
+## forest_RAIN_mm <- glmer(fire ~ RAIN + (1 | Event_ID), family = "binomial", data = train)
+## forest_D_mm <- glmer(fire ~ D + (1 | Event_ID), family = "binomial", data = train)
+## forest_AET_mm <- glmer(fire ~ AET + (1 | Event_ID), family = "binomial", data = train)
+
+
+## predicted_forest_RD_mm <- predict(forest_RD_mm, test, type = "response")
+## predicted_forest_VPD_mm <- predict(forest_VPD_mm, test, type = "response")
+## predicted_forest_T_mm <- predict(forest_T_mm, test, type = "response")
+## predicted_forest_SOIL_mm <- predict(forest_SOIL_mm, test, type = "response")
+## predicted_forest_GDD_mm <- predict(forest_GDD_mm, test, type = "response")
+## predicted_forest_AWSSM_mm <- predict(forest_AWSSM_mm, test, type = "response")
+## predicted_forest_RAIN_mm <- predict(forest_RAIN_mm, test, type = "response")
+## predicted_forest_D_mm <- predict(forest_D_mm, test, type = "response")
+## predicted_forest_AET_mm <- predict(forest_AET_mm, test, type = "response")
+
+## roc.list <- list( RD = roc(test$fire, predicted_forest_RD_mm),
+##                  VPD = roc(test$fire, predicted_forest_VPD_mm),
+##                  T = roc(test$fire, predicted_forest_T_mm),
+##                  SOIL = roc(test$fire, predicted_forest_SOIL_mm),
+##                  GDD = roc(test$fire, predicted_forest_GDD_mm),
+##                  AWSSM = roc(test$fire, predicted_forest_AWSSM_mm),
+##                  RAIN = roc(test$fire, predicted_forest_RAIN_mm),
+##                  D = roc(test$fire, predicted_forest_D_mm),
+##                  AET = roc(test$fire, predicted_forest_AET_mm) )
+
+## ggroc(roc.list, lwd = 2)
+
+## forest_RD <- glm(fire ~ RD, family = "binomial", data = train)
+
+## anova(forest_RD_mm, forest_RD, test = "Chisq")
+
+
+## forest_VPD <- glm(fire ~ VPD, family = "binomial", data = train)
+## forest_T <- glm(fire ~ T, family = "binomial", data = train)
+## forest_SOIL <- glm(fire ~ SOIL, family = "binomial", data = train)
+## forest_GDD <- glm(fire ~ GDD, family = "binomial", data = train)
+## forest_AWSSM <- glm(fire ~ AWSSM, family = "binomial", data = train)
+## forest_RAIN <- glm(fire ~ RAIN, family = "binomial", data = train)
+## forest_AET <- glm(fire ~ AET, family = "binomial", data = train)
+## forest_D <- glm(fire ~ D, family = "binomial", data = train)
+
+## predicted_forest_RD <- predict(forest_RD, test, type = "response")
+## predicted_forest_VPD <- predict(forest_VPD, test, type = "response")
+## predicted_forest_T <- predict(forest_T, test, type = "response")
+## predicted_forest_SOIL <- predict(forest_SOIL, test, type = "response")
+## predicted_forest_GDD <- predict(forest_GDD, test, type = "response")
+## predicted_forest_AWSSM <- predict(forest_AWSSM, test, type = "response")
+## predicted_forest_RAIN <- predict(forest_RAIN, test, type = "response")
+## predicted_forest_AET <- predict(forest_AET, test, type = "response")
+## predicted_forest_D <- predict(forest_D, test, type = "response")
+
+## rocobj_forest_RD <- roc(test$fire, predicted_forest_RD)
+## rocobj_forest_VPD <- roc(test$fire, predicted_forest_VPD)
+## rocobj_forest_T <- roc(test$fire, predicted_forest_T)
+## rocobj_forest_SOIL <- roc(test$fire, predicted_forest_SOIL)
+## rocobj_forest_GDD <- roc(test$fire, predicted_forest_GDD)
+## rocobj_forest_AWSSM <- roc(test$fire, predicted_forest_AWSSM)
+## rocobj_forest_RAIN <- roc(test$fire, predicted_forest_RAIN)
+## rocobj_forest_AET <- roc(test$fire, predicted_forest_AET)
+## rocobj_forest_D <- roc(test$fire, predicted_forest_D)
+
+## ggroc(rocobj_forest_RD, colour = 'steelblue', size = 2)
+
+## +
+##     ggroc(rocobj_forest_VPD, colour = 'darkred', size = 2) +
+##     ggroc(rocobj_forest_T, colour = 'orange', size = 2) +
+##     ggroc(rocobj_forest_SOIL, colour = 'green', size = 2) +
+##     ggroc(rocobj_forest_GDD, colour = 'purple', size = 2) +
+##     ggroc(rocobj_forest_AWSSM, colour = 'aquamarine2', size = 2) +
+##     ggroc(rocobj_forest_RAIN, colour = 'darkorchid2', size = 2) +
+##     ggroc(rocobj_forest_AET, colour = 'deeppink', size = 2) +
+##     ggroc(rocobj_forest_D, colour = 'firebrick1', size = 2) 
+    
 forest_rd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 forest_vpd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 forest_temp_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
@@ -216,7 +366,7 @@ legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
 text(1,75,"AUC")
 ```
 
-```{r nonforest_roc, eval = T, message = F, echo = F}
+```{r nonforest_roc, fig.width = 8, fig.height = 8, eval = T, message = F, echo = F}
 nonforest_rd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_vpd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_temp_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
@@ -279,7 +429,7 @@ hier.part(y,xcann,barplot=TRUE)
 ```
 
 Plots of wb percentile vs. area burned show weak relationships
-```{r wb-vs-area, fig.width = 8, echo = F, message = F}
+```{r wb-vs-area, fig.width = 8, fig.height = 8, echo = F, message = F}
 ggplot(ignitions_long, aes(x=value, y=Acres, colour=factor(maj_veg_cl))) +
     geom_point(size=3) +
     geom_smooth(method="lm", se=FALSE) +
@@ -289,7 +439,7 @@ ggplot(ignitions_long, aes(x=value, y=Acres, colour=factor(maj_veg_cl))) +
     plot_theme
 ```
 
-```{r wb-vs-logarea, fig.width = 8, echo = F, message = F}
+```{r wb-vs-logarea, fig.width = 8, fig.height = 8, echo = F, message = F}
 ggplot(ignitions_long, aes(x=value, y=log(Acres), colour=factor(maj_veg_cl))) +
     geom_point(size=3) +
     geom_smooth(method="lm", se=FALSE) +
@@ -298,9 +448,10 @@ ggplot(ignitions_long, aes(x=value, y=log(Acres), colour=factor(maj_veg_cl))) +
     scale_color_manual(values=c("red","black")) +
     plot_theme
 ```
+
 # ECDF
 
-```{r ecdf-all-vars, echo = F}
+```{r ecdf-all-vars, fig.width = 8, fig.height = 4, echo = F}
 ggplot(ignitions_long, aes(value, color = name)) +
     stat_ecdf(pad = FALSE) +
     xlab("Percentile at ignition") +
@@ -308,7 +459,7 @@ ggplot(ignitions_long, aes(value, color = name)) +
     plot_theme
 ```
 
-```{r ecdf-cwd-vpd, echo = F} 
+```{r ecdf-cwd-vpd, fig.width = 8, fig.height = 4, echo = F} 
 ggplot(filter(ignitions_long,
               name %in% c("VPD", "D")),
        aes(value, color = name)) +
@@ -320,3 +471,8 @@ ggplot(filter(ignitions_long,
     facet_grid(~ maj_veg_cl) +
     plot_theme
 ```
+
+# Questions
+## Modeling
+- are we violating indepdencence assumption for logistic regression?
+- should we be using test data set to fit models?
