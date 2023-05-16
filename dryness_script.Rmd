@@ -226,6 +226,8 @@ ggcorr(wbdata_percentiles_forest, method = c("everything", "pearson"))
 <!-- ``` -->
 
 # ROC Analysis
+We use the AUC (area under the curve) of the ROC (receiver operating characteristic) as a measure of goodness-of-fit to evaluate which predictors to use in the fire danger model.  
+
 
 ```{r forest_roc, fig.width = 6, fig.height = 6, include = TRUE, eval = T, message = F, echo = F}
 ## library(lme4)
@@ -479,6 +481,13 @@ ggplot(filter(ignitions_long,
 ```
 
 # Fire Danger Model
+
+The fire danger model uses ECDF curves of water balance percentiles on day of ignition.  We can use the logistic regression models evaluated in the ROC analysis to estimate probability of ignition for given water balance percentiles for a given day, but due to the very large number of non-ignition days in the dataset, the probability of ignition for any given day will be extremely low.  Instead, we will look only at days that had an ignition, and compare the water balance percentiles for those days.  This allows us to, for example, take a percentile of water deficit on a given day and compare that to the proportion of historic fires that burned at or below this value.  
+
+Low fire danger is taken as the water balance percentile at or below which 10% of historical fires ignited.
+
+High fire danger is taken as the water balance percentile at or below which 40% of historical fires ignited.
+
 
 ```{r ecdf-regression-setup}
 regression_formulas <- tribble(
