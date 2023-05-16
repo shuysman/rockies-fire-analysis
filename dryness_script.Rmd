@@ -53,9 +53,9 @@ master_csv <- settings$params[[1]]$master_csv
 1. Get MTBS database
   + Extract fire polys by location of interest (Ecoregion)
   + Create centroids for each poly (Pole of inaccessability in QGIS)
-2. Get LANDFIRE EVT (Expected Vegetation Type data)
+2. Get LANDFIRE EVT (Existing Vegetation Type data)
   + Use statistics tool in QGIS to get mean, median, and mode EVT by pixel count.  Only mode is used going further.
-3. Create master csv file with points of interest.  Needs columns 'Event_ID', 'Incid_Type', 'Ig_Date', 'Lon', 'Lat, and 'LF20_EVT_5' (Landfire 2020 EVT type).  Further analysis can look at finer resolution LANDFIRE vegetation types offered.  
+3. Create master csv file with points of interest.  Needs columns 'Event_ID', 'Incid_Type', 'Ig_Date', 'x' (=Longitude), 'y' (=Latitiude), and 'LF20_EVT_5' (Landfire 2020 EVT type).  Further analysis can look at finer resolution LANDFIRE vegetation types offered.  
 4. Get Historical WB data for each centroid from Mike
 5. Get Historical gridmet climate data for Each centroid
   + gridmet-historical.R - download gridmet data for each point
