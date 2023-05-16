@@ -1,9 +1,14 @@
 ---
 title: 'Rockies Fire Analysis'
 author: "Stephen Huysman"
+date: "`r Sys.Date()`"
 fontsize: 10pt 
 bibliography: fire.bib
 csl: global-ecology-and-biogeography.csl
+output:
+  html_document:
+    toc: true
+    toc_float: true
 ---
 # Settings
 ```{r settings, include = T}
