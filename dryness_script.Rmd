@@ -18,8 +18,13 @@ library(zoo)
 library(slider)
 library(pROC)
 
-plot_theme <- theme_bw() +
-    theme(text = element_text(size = 22))
+plot_theme <- theme_bw() 
+
+cores <- parallel::detectCores() - 4
+cluster <- new_cluster(cores)
+
+window <- 7 ## Window of days to calculate rolling values
+vars <- c("RD", "VPD", "T", "SOIL", "AWSSM", "RAIN", "AET", "D", "GDD")
 
 region_name <- "Southern Rockies"  ## Set region name, should be same as L3 Ecoregion name
 
@@ -67,7 +72,7 @@ master_csv <- settings$params[[1]]$master_csv
 
 # Master dataframe
 Read in file containing meta data for fires of interest.
-```{r metadata, include = F}
+```{r metadata, include = T}
 setwd(data_dir)
 
 master <- read_csv(master_csv) %>%
@@ -129,13 +134,7 @@ knitr::kable(doy_min_max)
 ```
 
 # Compute Percentiles
-```{r analysis, include = F}
-cores <- parallel::detectCores() - 4
-cluster <- new_cluster(cores)
-
-window <- 7 ## Window of days to calculate rolling values
-vars <- c("RD", "VPD", "T", "SOIL", "AWSSM", "RAIN", "AET", "D", "GDD")
-
+```{r analysis, include = T}
 cluster_copy(cluster, "master")
 cluster_copy(cluster, "window")
 cluster_copy(cluster, "vars")
@@ -226,7 +225,7 @@ ggcorr(wbdata_percentiles_forest, method = c("everything", "pearson"))
 
 # ROC Analysis
 
-```{r forest_roc, fig.width = 8, fig.height = 8, include = TRUE, eval = T, message = F, echo = F}
+```{r forest_roc, fig.width = 6, fig.height = 6, include = TRUE, eval = T, message = F, echo = F}
 ## library(lme4)
 
 ## #divide dataset into training and test set
@@ -371,7 +370,7 @@ legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
 text(1,75,"AUC")
 ```
 
-```{r nonforest_roc, fig.width = 8, fig.height = 8, eval = T, message = F, echo = F}
+```{r nonforest_roc, fig.width = 6, fig.height = 6, eval = T, message = F, echo = F}
 nonforest_rd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_vpd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_temp_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
