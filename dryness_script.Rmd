@@ -180,21 +180,23 @@ wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_ve
     filter(maj_veg_cl == "forest") %>%
     filter(Date <= Ig_Date,
            yday(Date) >= forest_start, ## Filter to fire season
-           yday(Date) <= forest_end) %>%  ## To get this to match results from original dryness_script2, we only filter beginning of season
-    slice(window + 1:n()) %>%
+           yday(Date) <= forest_end) %>%  ## To get this to match results from original dryness_script2, we only filter beginning of season.  Original script also didn't use doy, instead it filtered by absolute date, so would only chop off first pre-fireseason from first year in record.
+##    slice(window + 1):n()) %>%
+    collect() %>%
+    drop_na(vars) %>% ### Drop NAs from periods not included in rolling calcs
     mutate(across(vars,
-                  percent_rank)) %>%
-    collect()
+                  percent_rank))
 
 wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
     filter(maj_veg_cl == "non-forest") %>%
     filter(Date <= Ig_Date,
            yday(Date) >= nonforest_start,  ## Filter to fire season
            yday(Date) <= nonforest_end) %>%
-    slice(window + 1:n()) %>%
+    ##        slice((window + 1):n()) %>%
+    collect() %>%
+    drop_na(vars) %>% ### Drop NAs from periods not included in rolling calcs
     mutate(across(vars,
-                  percent_rank)) %>%
-    collect()
+                  percent_rank)) 
 
 ignitions_forest <- wbdata_percentiles_forest %>% filter(fire == 1)
 nonignitions_forest <- wbdata_percentiles_forest %>% filter(fire == 0)
