@@ -488,6 +488,7 @@ Low fire danger is taken as the water balance percentile at or below which 10% o
 
 High fire danger is taken as the water balance percentile at or below which 40% of historical fires 
 
+A regression line is fit to the ECDF curves to develop an equation that can be used to estimate proportion of historical fires for a given cover type burning at or below an input water balance variable percentile. 
 
 ```{r ecdf-regression-setup}
 regression_formulas <- tribble(
