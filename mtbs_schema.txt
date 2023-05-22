@@ -1,0 +1,82 @@
+Source: https://developers.google.com/earth-engine/datasets/catalog/USFS_GTAC_MTBS_burned_area_boundaries_v1#table-schema
+
+Asmnt_Type 	STRING 	
+
+Assessment Type: Which mapping strategy is being used?
+
+"SS" means "Single Scene", or a mapping where just a post-fire image was used.
+
+    Initial
+    Extended
+    Initial (SS)
+    Extended (SS)
+
+BurnBndAc 	INT 	
+
+Burn boundary acreage.
+BurnBndLat 	STRING 	
+
+Latitude for burned area boundary centroid.
+BurnBndLon 	STRING 	
+
+Longitude for burned area boundary centroid.
+Comment 	STRING 	
+
+Comments for delineated perimeter.
+dNBR_offst 	INT 	
+
+dNBR offset calculated by the analyst.
+dNBR_stdDv 	INT 	
+
+Standard deviation offset calculated by the the analyst.
+Event_ID 	STRING 	
+
+Unique identifier for each event (21 characters). Calculated from source data (ICS209, FedFire, etc.) each time an event is created or updated using the state, lat/long coordinates (ig_lat, ig_long). Note that for longitudes less than 100° a leading zero is added to maintain 21 characters.
+High_T 	INT 	
+
+High threshold: dNBR values above which, or NBR values below which a fire is considered High Severity by the analyst.
+Ig_Date 	INT 	
+
+Date of ignition in Unix Epoch Time (the number of milliseconds since 1970-01-01T00:00:00Z).
+IncGreen_T 	INT 	
+
+Increased greenness threshold: dNBR values above which, or NBR values below which an area is considered to have Increased greenness by the analyst.
+Incid_Name 	STRING 	
+
+Incident Name: common name of the event or "UNNAMED".
+Incid_Type 	STRING 	
+
+Type of event:
+
+    Wildfire
+    Prescribed Fire
+    Wildland Fire Use
+    Unknown
+
+irwinID 	STRING 	
+
+Unique, alphanumeric identifier assigned to each incident record in IRWIN or an empty string.
+Low_T 	INT 	
+
+Low threshold: dNBR values above which, or NBR values below which a fire is considered Low Severity by the analyst.
+Map_ID 	INT 	
+
+Mapping ID (ID for a specific mapping activity).
+Map_Prog 	STRING 	
+
+Map Program: which program was this mapping activity completed by? E.g., MTBS'
+Mod_T 	INT 	
+
+Moderate threshold: dNBR values above which, or NBR values below which a fire is considered Moderate Severity by the analyst.
+NoData_T 	INT 	
+
+Threshold for no data: dNBR values above which, or NBR values below which a fire is considered to represent No Data by the analyst.
+Perim_ID 	STRING 	
+
+Scene ID for perimeter scene. Perimeter scenes are scenes selected to help the analyst better identify the fire perimeter. Perimeter scenes are only selected when pre-fire and post-fire scenes are not sufficient to define a perimeter.
+Post_ID 	STRING 	
+
+Scene ID for pre-fire scene. If a pre-fire scene was not available at the time of mapping, the mapping analyst uses NBR from the post-fire scene to calculate severity.
+Pre_ID 	STRING 	
+
+Scene ID for pre-fire scene or an empty string.
