@@ -574,7 +574,7 @@ par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
 ##                "s" - creates a square plotting region
 ##                "m" - (the default) creates a maximal plotting region
 par(bg="white")
-plot.roc(col="pink",forest_rd_roc, lwd=4, print.auc=FALSE, main = "Forest")
+plot.roc(col="pink",forest_rd_roc, lwd=4, print.auc=FALSE, main = paste(region_name, "Forest ", window, " days"))
 plot.roc(add=TRUE,col="dark blue",forest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="green",forest_t_roc, main="temp", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="red",forest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
@@ -614,7 +614,7 @@ par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
 ##                "s" - creates a square plotting region
 ##                "m" - (the default) creates a maximal plotting region
 par(bg="white")
-plot.roc(col="pink",nonforest_rd_roc, lwd=4, print.auc=FALSE, main = "Nonforest")
+plot.roc(col="pink",nonforest_rd_roc, lwd=4, print.auc=FALSE, main = paste(region_name, "Nonforest ", window, " days"))
 plot.roc(add=TRUE,col="dark blue",nonforest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="green",nonforest_t_roc, main="temp", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="red",nonforest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
