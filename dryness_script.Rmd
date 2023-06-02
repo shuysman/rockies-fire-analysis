@@ -15,7 +15,7 @@ output:
 library(tidyverse)
 library(multidplyr)
 library(zoo)
-library(slider)
+##library(slider)
 library(pROC)
 
 plot_theme <- theme_bw() 
