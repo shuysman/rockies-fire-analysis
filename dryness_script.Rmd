@@ -418,6 +418,22 @@ knitr::kable(nonforest_roc_table_full)
 
 ```
 
+```{r auc-windows-plots, fig.height = 8, fig.width = 8}
+forest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
+    ggplot() +
+    geom_line(mapping = aes(x = window, y = value, color = var), lwd=1) +
+    facet_wrap(~name, ncol = 1) +
+    ggtitle(paste(region_name, "Forest AUC and pAUC")) +
+    plot_theme + theme(legend.position="bottom")
+
+nonforest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
+    ggplot() +
+    geom_line(mapping = aes(x = window, y = value, color = var), lwd=1) +
+    facet_wrap(~name, ncol = 1) +
+    ggtitle(paste(region_name, "Nonforest AUC and pAUC")) +
+    plot_theme + theme(legend.position="bottom")
+```
+
 # Corrplot
 
 ```{r}
