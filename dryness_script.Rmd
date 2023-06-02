@@ -217,6 +217,36 @@ nonignitions_nonforest <- wbdata_percentiles_nonforest %>% filter(fire == 0)
 ignitions_nonforest_long <- ignitions_nonforest %>% pivot_longer(cols = vars)
 ignitions_long <- rbind(ignitions_forest_long, ignitions_nonforest_long)
 
+wbdata_smoothed_c <- wbdata_smoothed %>% collect()
+master_c <- master %>% collect()
+
+```
+
+# Data Visualizations
+
+```{r dates-included}
+wbdata_percentiles_forest %>%
+    filter(Event_ID %in% master_c$Event_ID[1:25]) %>%
+    ggplot() +
+    geom_point(aes(x = Date, y = Event_ID)) +
+    geom_point(aes(x = Ig_Date, y = Event_ID), col = "red") +
+    ggtitle("Dates included in analysis") +
+    plot_theme
+
+```
+
+```{r date-distributions}
+wbdata_smoothed_c %>%
+    filter(fire == 1) %>%
+    pivot_longer(vars) %>%
+    ggplot(mapping = aes(x = Ig_Date, y = value, color = maj_veg_cl)) +
+    geom_smooth(method = "lm") +
+    geom_point() +
+    facet_wrap(~name, scales = "free") +
+    ggtitle(paste(region_name, "water balance on ignition date"))
+```
+
+```{r}
 
 ```
 
