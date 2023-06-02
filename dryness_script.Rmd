@@ -597,6 +597,25 @@ legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
        bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
        lty=1, lwd=4, text.font=2)#cex=0.9,
 text(1,75,"AUC")
+
+auc0f <- function(var) {
+    roc <- paste0("forest_", var, "_roc")
+    return(as.numeric(auc(get(roc))))
+}
+auc10f <- function(var) {
+        roc <- paste0("forest_", var, "_roc")
+        return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
+}
+auc20f <- function(var) {
+        roc <- paste0("forest_", var, "_roc")
+        return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
+}
+forest_roc_table <- tribble(~window, ~var, ~auc, ~auc20, ~auc10)
+for (var in vars) {
+    forest_roc_table <- forest_roc_table %>% add_row(window = window, var = var, auc = auc0f(tolower(var)), auc20 = auc20f(tolower(var)), auc10 = auc10f(tolower(var)))
+}
+
+knitr::kable(forest_roc_table)
 ```
 
 ```{r nonforest_roc, fig.width = 6, fig.height = 6, eval = T, message = F, echo = F}
@@ -637,6 +656,25 @@ legend(35, 75, legend=c(paste("RD ",round(auc(nonforest_rd_roc),1)),
        bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
        lty=1, lwd=4, text.font=2)#cex=0.9,
 text(1,75,"AUC")
+
+auc0nf <- function(var) {
+    roc <- paste0("nonforest_", var, "_roc")
+    return(as.numeric(auc(get(roc))))
+}
+auc10nf <- function(var) {
+    roc <- paste0("nonforest_", var, "_roc")
+    return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
+}
+auc20nf <- function(var) {
+    roc <- paste0("nonforest_", var, "_roc")
+    return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
+}
+nonforest_roc_table <- tribble(~window, ~var, ~auc, ~auc20, ~auc10)
+for (var in vars) {
+    nonforest_roc_table <- nonforest_roc_table %>% add_row(window = window, var = var, auc = auc0nf(tolower(var)), auc20 = auc20nf(tolower(var)), auc10 = auc10nf(tolower(var)))
+}
+
+knitr::kable(nonforest_roc_table)
 ```
 
 demonstrate histogram of conditions associated with fire or no fire to see how much overlap there is.  This helps interpret the ROC
