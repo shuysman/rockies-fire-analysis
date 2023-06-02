@@ -559,10 +559,10 @@ We use the AUC (area under the curve) of the ROC (receiver operating characteris
 ##     ggroc(rocobj_forest_RAIN, colour = 'darkorchid2', size = 2) +
 ##     ggroc(rocobj_forest_AET, colour = 'deeppink', size = 2) +
 ##     ggroc(rocobj_forest_D, colour = 'firebrick1', size = 2) 
-    
+
 forest_rd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 forest_vpd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-forest_temp_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+forest_t_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 forest_soil_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 forest_gdd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 forest_awssm_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
@@ -576,7 +576,7 @@ par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
 par(bg="white")
 plot.roc(col="pink",forest_rd_roc, lwd=4, print.auc=FALSE, main = "Forest")
 plot.roc(add=TRUE,col="dark blue",forest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="green",forest_temp_roc, main="temp", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="green",forest_t_roc, main="temp", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="red",forest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="brown",forest_gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="magenta",forest_awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
@@ -587,7 +587,7 @@ plot.roc(add=TRUE,col="orange",forest_d_roc, main="d", lwd=4, print.auc=FALSE)
 legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
                                         #paste("SVP ",round(auc(forest_svp_roc),1)),
                         paste("VPD ",round(auc(forest_vpd_roc),1)),
-                        paste("TEMP ",round(auc(forest_temp_roc),1)),
+                        paste("TEMP ",round(auc(forest_t_roc),1)),
                         paste("SOIL ",round(auc(forest_soil_roc),1)),
                         paste("GDD ",round(auc(forest_gdd_roc),1)),
                         paste("SWD",round(auc(forest_awssm_roc),1)),
@@ -602,7 +602,7 @@ text(1,75,"AUC")
 ```{r nonforest_roc, fig.width = 6, fig.height = 6, eval = T, message = F, echo = F}
 nonforest_rd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_vpd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_temp_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+nonforest_t_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_soil_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_gdd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
 nonforest_awssm_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
@@ -616,7 +616,7 @@ par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
 par(bg="white")
 plot.roc(col="pink",nonforest_rd_roc, lwd=4, print.auc=FALSE, main = "Nonforest")
 plot.roc(add=TRUE,col="dark blue",nonforest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="green",nonforest_temp_roc, main="temp", lwd=4, print.auc=FALSE)
+plot.roc(add=TRUE,col="green",nonforest_t_roc, main="temp", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="red",nonforest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="brown",nonforest_gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="magenta",nonforest_awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
@@ -627,7 +627,7 @@ plot.roc(add=TRUE,col="orange",nonforest_d_roc, main="d", lwd=4, print.auc=FALSE
 legend(35, 75, legend=c(paste("RD ",round(auc(nonforest_rd_roc),1)),
                                         #paste("SVP ",round(auc(nonforest_svp_roc),1)),
                         paste("VPD ",round(auc(nonforest_vpd_roc),1)),
-                        paste("TEMP ",round(auc(nonforest_temp_roc),1)),
+                        paste("TEMP ",round(auc(nonforest_t_roc),1)),
                         paste("SOIL ",round(auc(nonforest_soil_roc),1)),
                         paste("GDD ",round(auc(nonforest_gdd_roc),1)),
                         paste("SWD",round(auc(nonforest_awssm_roc),1)),
