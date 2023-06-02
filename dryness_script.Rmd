@@ -131,6 +131,17 @@ forest_end<-doy_min_max[1,2]
 nonforest_end<-doy_min_max[2,2]
 
 knitr::kable(doy_min_max)
+
+## Dates in data analyzed
+master %>% select(Ig_Date, Acres, maj_veg_cl) %>%
+    group_by(maj_veg_cl) %>%
+    summarize(max_acres = max(Acres),
+              min_acres = min(Acres),
+              max_date = max(Ig_Date),
+              min_date = min(Ig_Date)) %>%
+    knitr::kable()
+
+
 ```
 
 # Compute Percentiles
