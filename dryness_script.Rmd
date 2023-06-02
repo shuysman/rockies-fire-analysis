@@ -662,7 +662,7 @@ hier.part(y,xcann,barplot=TRUE)
 ```
 
 Plots of wb percentile vs. area burned show weak relationships
-```{r wb-vs-area, fig.width = 8, fig.height = 8, echo = F, message = F}
+```{r wb-vs-area, fig.width = 8, fig.height = 8, eval = F, include = F}
 ggplot(ignitions_long, aes(x=value, y=Acres, colour=factor(maj_veg_cl))) +
     geom_point(size=3) +
     geom_smooth(method="lm", se=FALSE) +
