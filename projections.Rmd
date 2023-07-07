@@ -1,0 +1,519 @@
+---
+title: 'Rockies Fire Analysis: Projections'
+author: "Stephen Huysman"
+date: "`r Sys.Date()`"
+fontsize: 10pt 
+bibliography: fire.bib
+csl: global-ecology-and-biogeography.csl
+output:
+  html_document:
+    toc: true
+    toc_float: false
+---
+
+
+Experimenting with using fire model to create projections.
+
+# Setup
+
+```{R}
+library(ncdf4)
+library(raster)
+library(sf)
+library(tidyverse)
+library(zoo) ## rollapply()
+library(ggmap)
+library(rgdal)
+library(leaflet)
+library(leaflet.extras)
+
+fire_season_start <- 93
+fire_season_end <- 289
+
+rolling_window <- 7
+
+years <- seq(2024,2028) ## For Multiple Year Analyses
+
+ecdf_regression <- function (x) {
+    ## ECDF function generated from dryness_script.Rmd.  This function
+    ## was generated for 7 day rolling windows and forested cover
+    ## type.  To use a different length for rolling calculations and
+    ## different cover types a different regression function should be
+    ## used here.
+    e <- exp(1)
+    return(e^(-10.38 + 29.98*x + -45.25*x^2 + 25.65*x^3))
+}
+
+curve(ecdf_regression(x))
+
+geo_proj <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+## LCC projection used by the NPS gridded water balance dataset
+lcc_proj <-  "+proj=lcc +lat_0=42.5 +lon_0=-100 +lat_1=25 +lat_2=60 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
+
+lf_evt_2020 <-raster("/media/steve/storage/LANDFIRE/LF2020_EVT_220_CONUS/Tif/LC20_EVT_220.tif")
+```
+
+# Probability Method
+What is the probability a pixel will burn by the end of a growing
+season?  Method using logisitic regression model estimating
+probability of wildfire ignition given a percentile of WB variable
+developed in `dryness_script.Rmd`
+
+## Single Year
+### Read ncdf4 File
+```{R fig.height = 7, fig.width = 7, out.width = '100%'}
+beginCluster(n = 12)
+
+##ncpath <- "/home/steve/Downloads/v2_2019_Deficit.nc4" ## Daymet 
+##ncpath <- "/home/steve/Downloads/V_1_5_1988_gridmet_historical_Deficit.nc4"
+##ncpath <- "/home/steve/Downloads/V_1_5_2016_gridmet_historical_Deficit.nc4"
+ncpath <- "/home/steve/Downloads/V_1_5_2019_gridmet_historical_Deficit.nc4"
+##ncpath <- "/home/steve/Downloads/V_1_5_2021_gridmet_historical_Deficit.nc4"
+##ncpath <- "/home/steve/Downloads/V_1_5_2024_inmcm4_rcp45_Deficit.nc4"
+##ncpath <- "/home/steve/Downloads/V_1_5_2025_inmcm4_rcp45_Deficit.nc4"
+##ncpath <- "/home/steve/Downloads/V_1_5_2026_inmcm4_rcp45_Deficit.nc4"
+##ncpath <- "/home/steve/Downloads/V_1_5_2027_inmcm4_rcp45_Deficit.nc4"
+##ncpath <- "/home/steve/Downloads/V_1_5_2028_inmcm4_rcp45_Deficit.nc4"
+
+## ncin <- nc_open(ncpath)
+## print(ncin)
+
+b <- brick(ncpath)
+
+gye_boundary <- st_read("/home/steve/OneDrive/whitebark/gyeboundary/GYE_boundary_dd.shp")
+gye_boundary_lcc <- st_transform(gye_boundary, crs(b))
+ext <- extent(gye_boundary_lcc)
+
+x <- crop(b, ext)
+
+## Water balance conditions on day 93
+plot(subset(x, 93))
+
+## Water balance conditions on day 150
+plot(subset(x, 150))
+
+## Water balance conditions on day 250
+plot(subset(x, 250))
+
+##x2 <- raster::calc(x, function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right"))
+x2 <- clusterR(x,
+               fun = calc,
+               args = list(fun = function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right")),
+               export = 'rolling_window')
+
+##x3 <- raster::calc(x2, function (x) percent_rank(x))
+x3 <- clusterR(x2,
+               fun = calc,
+               args = list(fun = function (x) percent_rank(x)))
+crs(x3) <- crs(b)
+
+## ## Set 0 values to NA. In some of the layers from the NPS gridded
+## ## dataset there are apparent data gaps that = 0, this affects color
+## ## scaling of visualiations.
+## x3[x3 == 0] <- NA
+
+plot(subset(x3, 150))
+
+plot(subset(x3, 200))
+
+endCluster()
+```
+
+
+### Projection Map
+
+```{R fig.height = 7, fig.width = 7, out.width = '100%'}
+## Model file exported from dryness_script.Rmd.  Should contain a
+## logisitic regression glm object called `lm1`, with predictor
+## variable `D` and response variable `fire`
+lm_file <- "out/Middle_Rockies_lm.rda"
+
+load(lm_file)
+
+summary(lm1)
+
+## Predict probability of burning on each day
+brick <- brick()
+crs(brick) <- crs(b)
+for (day in seq(fire_season_start, fire_season_end)) {
+    raster_layer <- subset(x3, day)
+    old_name <- names(raster_layer)
+    names(raster_layer) <- "D"
+    predicted_layer <- raster::predict(raster_layer, lm1, type = "response")
+    names(predicted_layer) <- old_name
+    brick <- addLayer(brick, predicted_layer)
+}
+
+
+## Accumate to probability of burning by end of fire season
+## pr(A or B) = pr(A) + pr(B) - pr(A and B)
+## I'm not sure if this is the right way to calculate this
+## (sum) or (sum - prod) give similar results
+x4 <- raster::calc(brick, sum) - raster::calc(brick, prod)
+crs(x4) <- crs(brick)
+
+
+## Probability pixel will burn on first day of fire season
+plot(subset(brick, 1))
+
+
+## Probability pixel will burn on last day of fire season
+plot(subset(brick, 197))
+
+## Add in points for wildfires from MTBS database
+## master <- read_csv("/home/steve/OneDrive/nothern-rockies-dryness/MR_fire_points_extracted.csv") ##%>% dplyr::filter(year(Ig_Date) == 2019)
+## coords <- data.frame(
+##     x = master$x,
+##     y = master$y
+## )
+## spdf <- SpatialPointsDataFrame(coords = coords, data = master)
+
+## geo_proj <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+## proj4string(spdf) <- CRS(geo_proj)
+## lcc_proj <-  "+proj=lcc +lat_0=42.5 +lon_0=-100 +lat_1=25 +lat_2=60 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
+## spdf <- spTransform(spdf, CRS(lcc_proj))
+
+
+ggplot() +
+    geom_raster(data = as.data.frame(x4, xy = TRUE), mapping = aes(x = x, y = y, fill = layer)) +
+##    geom_point(data = as.data.frame(spdf), mapping = aes(x.1, y.1), color = "red") +
+    geom_sf(data = gye_boundary_lcc, alpha = 0.15, fill = NA, lwd = 2) +
+    theme_bw() +
+    scico::scale_fill_scico(palette = "vik") +
+    ggtitle("Probability pixel will ignite by end of fire season")
+    ##scale_fill_viridis_c(option = "magma")
+
+```
+
+## Multiple Years
+
+```{R fig.height = 7, fig.width = 7, out.width = '100%'}
+beginCluster(n = 12)
+
+all_years_brick <- brick()
+
+for (year in years) {
+    ncpath <- paste0("/home/steve/Downloads/V_1_5_", year , "_inmcm4_rcp45_Deficit.nc4")
+    
+    b <- brick(ncpath)
+    ## gye_boundary <- st_read("/home/steve/OneDrive/whitebark/gyeboundary/GYE_boundary_dd.shp")
+    ## gye_boundary_lcc <- st_transform(gye_boundary, crs(b))
+    ## ext <- extent(gye_boundary_lcc)
+    x <- crop(b, ext)
+
+    x2 <- clusterR(x,
+               fun = calc,
+               args = list(fun = function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right")),
+               export = 'rolling_window')
+
+    ##x3 <- raster::calc(x2, function (x) percent_rank(x))
+    x3 <- clusterR(x2,
+               fun = calc,
+               args = list(fun = function (x) percent_rank(x)))
+    crs(x3) <- crs(b)
+
+    ## lm_file <- "out/Middle_Rockies_lm.rda"
+    ## load(lm_file)
+    ## summary(lm1)
+
+    ## Predict probability of burning on each day
+    year_brick <- brick()
+    crs(year_brick) <- crs(b)
+    for (day in seq(fire_season_start, fire_season_end)) {
+        raster_layer <- subset(x3, day)
+        old_name <- names(raster_layer)
+        names(raster_layer) <- "D"
+        predicted_layer <- raster::predict(raster_layer, lm1, type = "response")
+        names(predicted_layer) <- old_name
+        year_brick <- addLayer(year_brick, predicted_layer)
+    }
+
+    x4 <- raster::calc(year_brick, sum) - raster::calc(year_brick, prod)
+    crs(x4) <- crs(year_brick)
+    
+    all_years_brick <- addLayer(all_years_brick, x4)
+}
+
+x5 <- raster::calc(all_years_brick, sum) - raster::calc(all_years_brick, prod)
+
+endCluster()
+
+ggplot() +
+    geom_raster(data = as.data.frame(x5, xy = TRUE), mapping = aes(x = x, y = y, fill = layer)) +
+##    geom_point(data = as.data.frame(spdf), mapping = aes(x.1, y.1), color = "red") +
+    geom_sf(data = gye_boundary_lcc, alpha = 0.15, fill = NA, lwd = 2) +
+    theme_bw() +
+    scico::scale_fill_scico(palette = "vik") +
+    ggtitle("Probability pixel will ignite by end of 2024-2028 period (inmcm4 rcp45)")
+    ##scale_fill_viridis_c(option = "magma")
+```
+
+## Leaflet map
+
+```{R out.width = '100%'}
+library(leaflet)
+
+pal4 <- colorNumeric(c("Blue", "White", "Pink", "Red"), values(x4),
+                    na.color = "transparent")
+pal5 <- colorNumeric(c("Blue", "White", "Pink", "Red"), values(x5),
+                    na.color = "transparent")
+
+leaflet() %>% addProviderTiles(providers$Stamen.Terrain) %>%
+    addPolygons(data = gye_boundary, fill = NA, group = "GYE Boundary") %>%
+    addRasterImage(x4, colors = pal4, opacity = 0.7, group = "Single Year probability of ignition") %>%
+    addRasterImage(x5, colors = pal5, opacity = 0.7, group = "Multiple Year probability of ignition") %>%
+    addLegend("bottomright", pal = pal4, values = values(x4), title = "P(ignition) - Single Year") %>%
+    addLegend("bottomright", pal = pal5, values = values(x5), title = "P(ignition) - Multiple Year") %>%
+    addLayersControl(
+        baseGroups = c("Single Year probability of ignition", "Multiple Year probability of ignition"),
+        overlayGroups = c("GYE Boundary"),
+        options = layersControlOptions(collapsed = FALSE)
+    ) %>%
+    addFullscreenControl()
+
+```
+
+# Days at risk method
+How many days is a pixel above [low/med/high] risk of burning?  Method
+using log-linear regression model estimating the ECDF for proportion
+of wildfires burning at or below a given percentile of WB variable
+developed in `dryness_script.Rmd`
+
+## Single Year
+```{R fig.height = 7, fig.width = 7, out.width = '100%'}
+# Fire Danger threshold.  "What proportion of historical fires burned
+# at or below this percentile of deficit?"
+
+beginCluster(n=12)
+
+threshold <- 0.15
+
+ncpath <- "/home/steve/Downloads/V_1_5_2019_gridmet_historical_Deficit.nc4"
+
+b <- brick(ncpath)
+
+## gye_boundary <- st_read("/home/steve/OneDrive/whitebark/gyeboundary/GYE_boundary_dd.shp")
+## gye_boundary_lcc <- st_transform(gye_boundary, crs(b))
+## ext <- extent(gye_boundary_lcc)
+
+x <- crop(b, ext)
+
+## ## Water balance conditions on day 93
+## plot(subset(x, 93))
+
+## ## Water balance conditions on day 150
+## plot(subset(x, 150))
+
+## ## Water balance conditions on day 250
+## plot(subset(x, 250))
+
+##x2 <- raster::calc(x, function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right"))
+x2 <- clusterR(x,
+               fun = calc,
+               args = list(fun = function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right")),
+               export = 'rolling_window')
+
+##x3 <- raster::calc(x2, function (x) percent_rank(x))
+x3 <- clusterR(x2,
+               fun = calc,
+               args = list(fun = function (x) percent_rank(x)))
+crs(x3) <- crs(b)
+
+fire_risk <- raster::calc(x3, function (x) ecdf_regression(x))
+
+## Proportion of historical fires burned at or below percentile conditions on this pixel on day 93
+plot(subset(fire_risk,93))
+
+## Proportion of historical fires burned at or below percentile conditions on this pixel on day 250
+plot(subset(fire_risk,250))
+
+fire_risk2 <- raster::calc(fire_risk, function (x) if_else(x >= threshold, 1, 0))
+
+## Fire risk at this pixel is above the danger threshold on day 93
+plot(subset(fire_risk2,93))
+
+## Fire risk at this pixel is above the danger threshold on day 250
+plot(subset(fire_risk2,250))
+
+fire_risk_only_fire_season <- subset(fire_risk2, seq(fire_season_start, fire_season_end))
+
+fire_risk_only_fire_season_days <- raster::calc(fire_risk_only_fire_season, sum, na.rm = TRUE)
+
+ggplot(as.data.frame(fire_risk_only_fire_season_days, xy = TRUE)) +
+    geom_raster(mapping = aes(x = x, y = y, fill = layer)) +
+    geom_sf(data = gye_boundary_lcc, alpha = 0.15, fill = NA, lwd = 2) +
+    theme_bw() +
+    scico::scale_fill_scico(palette = "bilbao") +
+    ggtitle("Days above fire danger threshold at each pixel")
+##    scale_fill_viridis_c(option = "D")
+```
+
+## Multiple Years
+
+```{R fig.height = 7, fig.width = 7, out.width = '100%'}
+beginCluster(n = 12)
+
+all_years_brick2 <- brick()
+
+for (year in years) {
+    ncpath <- paste0("/home/steve/Downloads/V_1_5_", year , "_inmcm4_rcp45_Deficit.nc4")
+    
+    b <- brick(ncpath)
+    ## gye_boundary <- st_read("/home/steve/OneDrive/whitebark/gyeboundary/GYE_boundary_dd.shp")
+    ## gye_boundary_lcc <- st_transform(gye_boundary, crs(b))
+    ## ext <- extent(gye_boundary_lcc)
+    x <- crop(b, ext)
+
+    x2 <- clusterR(x,
+               fun = calc,
+               args = list(fun = function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right")),
+               export = 'rolling_window')
+
+    ##x3 <- raster::calc(x2, function (x) percent_rank(x))
+    x3 <- clusterR(x2,
+               fun = calc,
+               args = list(fun = function (x) percent_rank(x)))
+    crs(x3) <- crs(b)
+
+    
+    fire_risk <- clusterR(x3,
+                          fun = calc,
+                          args = list(fun = function (x) ecdf_regression(x)),
+                          export = 'ecdf_regression')
+    
+    fire_risk2 <- clusterR(fire_risk,
+                           fun = calc,
+                           args = list(fun = function (x) if_else(x >= threshold, 1, 0)),
+                           export = 'threshold')
+
+    fire_risk_only_fire_season <- subset(fire_risk2, seq(fire_season_start, fire_season_end))
+
+    fire_risk_only_fire_season_days <- clusterR(fire_risk_only_fire_season,
+                                                fun = calc,
+                                                args = list(fun = sum, na.rm = TRUE))
+
+    all_years_brick2 <- addLayer(all_years_brick2, fire_risk_only_fire_season_days)
+}
+
+fire_risk_all_years <- raster::calc(all_years_brick2, sum, na.rm = TRUE)
+
+endCluster()
+
+ggplot(as.data.frame(fire_risk_all_years, xy = TRUE)) +
+    geom_raster(mapping = aes(x = x, y = y, fill = layer)) +
+    geom_sf(data = gye_boundary_lcc, alpha = 0.15, fill = NA, lwd = 2) +
+    theme_bw() +
+    scico::scale_fill_scico(palette = "bilbao") +
+    ggtitle("Days above fire danger threshold at each pixel 2024-2028, inmcm4 rcp45")
+```
+
+## Leaflet map
+
+```{R out.width = '100%'}
+library(leaflet)
+
+fire_risk_only_fire_season_days_wgs84 <- raster::projectRaster(fire_risk_only_fire_season_days, crs = geo_proj) ## Need to reproject to wgs84 so that colorNumeric uses values from reprojected raster, otherwise reprojecting after messes up palette in addRasterImage due to funky stuff going on with interpolation
+
+pal2 <- colorNumeric(c("Blue", "White", "Pink", "Red"), values(fire_risk_only_fire_season_days_wgs84),
+                    na.color = "transparent")
+pal3 <- colorNumeric(c("Blue", "White", "Pink", "Red"), values(fire_risk_all_years),
+                    na.color = "transparent")
+
+leaflet() %>% addProviderTiles(providers$Stamen.Terrain) %>%
+    addPolygons(data = gye_boundary, fill = NA, group = "GYE Boundary") %>%
+    addRasterImage(fire_risk_only_fire_season_days_wgs84, colors = pal2, opacity = 0.7, group = "Days above fire risk threshold") %>%
+    addRasterImage(fire_risk_all_years, colors = pal3, opacity = 0.7, group = "2024-2028, inmcm4 rcp45") %>%
+    addLegend("bottomright", pal = pal2, values = values(fire_risk_only_fire_season_days_wgs84), title = "Days above fire danger threshold", group = "Days above fire risk threshold") %>%
+    addLegend("bottomright", pal = pal3, values = values(fire_risk_all_years), title = "2024-2028, inmcm4 rcp45", group = "2024-2028, inmcm4 rcp45") %>%
+    addLayersControl(
+        baseGroups = c("Days above fire risk threshold", "2024-2028, inmcm4 rcp45"),
+        overlayGroups = c("GYE Boundary"),
+        options = layersControlOptions(collapsed = FALSE)
+    ) %>%
+    addFullscreenControl()
+
+```
+
+
+# Big Run
+
+```{R eval = F, include = F}
+start.time <- Sys.time()
+
+threshold <- 0.10
+out_path <- "/home/steve/Downloads/thredds/out/"
+##nc_data_path <- "/home/steve/Downloads/thredds/"
+## models <- c('NorESM1-M', 'MRI-CGCM3','MIROC-ESM-CHEM', 'MIROC5','IPSL-CM5A-LR','inmcm4','HadGEM2-CC365','CSIRO-Mk3-6-0','CNRM-CM5','CanESM2', 'BNU-ESM','CCSM4', 'GFDL-ESM2G')
+models <- c("NorESM1-M")
+## scenarios <- c('rcp85', 'rcp45')
+scenarios <- c("rcp45")
+
+years1 <- seq(2024, 2050)
+years2 <- seq(2051, 2099)
+
+##ncfiles <- list.files(path = nc_data_path, pattern="*.nc")
+
+for (model in models) {
+    print(model)
+    for (scenario in scenarios) {
+        print(scenario)
+        all_years_brick <- brick()
+        for (year in years1) {
+            beginCluster(n=12) ## I put the begin and end cluster
+                               ## calls inside the loop because
+                               ## calling it earlier was creating
+                               ## large raster temp files that weren't
+                               ## getting cleaned up, leading to out
+                               ## of disk space
+
+            ncpath <- paste0("/home/steve/Downloads/thredds/Deficit_", model, "_", scenario, "_", year, "subset.nc")
+            print(ncpath)
+
+            x <- brick(ncpath)
+
+            ##x <- crop(b, ext)
+
+            ##x2 <- raster::calc(x, function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right"))
+            x2 <- clusterR(x,
+                           fun = calc,
+                           args = list(fun = function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right")),
+                           export = 'rolling_window')
+
+            ##x3 <- raster::calc(x2, function (x) percent_rank(x))
+            x3 <- clusterR(x2,
+                           fun = calc,
+                           args = list(fun = function (x) percent_rank(x)))
+
+            fire_risk <- raster::calc(x3, function (x) ecdf_regression(x))
+
+            fire_risk2 <- raster::calc(fire_risk, function (x) if_else(x >= threshold, 1, 0))
+
+            fire_risk_only_fire_season <- subset(fire_risk2, seq(fire_season_start, fire_season_end))
+
+            fire_risk_only_fire_season_days <- raster::calc(fire_risk_only_fire_season, sum, na.rm = TRUE)
+
+            all_years_brick <- addLayer(all_years_brick, fire_risk_only_fire_season_days)
+            crs(all_years_brick) <- crs(x)
+            endCluster()
+        }
+
+        fire_risk_all_years <- raster::calc(all_years_brick, mean, na.rm = TRUE)
+
+        writeRaster(fire_risk_all_years, paste0(out_path, "Deficit_", model, "_", scenario, "_2024-2050.grd"))
+    }
+}
+
+endCluster()
+
+end.time <- Sys.time()
+time.taken <- round(end.time - start.time,2)
+time.taken
+```
+
+# R Version
+
+```{r session-info}
+sessionInfo()
+```
+
+
