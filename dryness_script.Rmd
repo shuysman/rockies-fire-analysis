@@ -18,20 +18,22 @@ library(zoo)
 ##library(slider)
 library(pROC)
 
-plot_theme <- theme_bw() 
+plot_theme <- theme_bw() +
+    theme(text = element_text(size=16))
 
 cores <- parallel::detectCores() - 4
 cluster <- new_cluster(cores)
 
-window <- 7 ## Window of days to calculate rolling values
+window <- 7
 vars <- c("RD", "VPD", "T", "SOIL", "AWSSM", "RAIN", "AET", "D", "GDD")
 
-region_name <- "Southern Rockies"  ## Set region name, should be same as L3 Ecoregion name
+region_name <- "Middle Rockies"
 
 settings <- tribble(
     ~region, ~params,
     "Southern Rockies", list(data_dir =  "/home/steve/OneDrive/nothern-rockies-dryness",
-                           out_dir =  "/media/steve/storage/waterbalance/fire/out/ap23/",
+                             out_dir = "/media/steve/storage/waterbalance/fire/out/ap23/",
+##                                 "/home/steve/apr23_fire_points",
                            master_csv =  "SR_fire_points_extracted.csv"
                            ),
     "Middle Rockies", list(data_dir =  "/home/steve/OneDrive/nothern-rockies-dryness",
@@ -50,6 +52,12 @@ data_dir <- settings$params[[1]]$data_dir
 out_dir <- settings$params[[1]]$out_dir
 
 master_csv <- settings$params[[1]]$master_csv
+```
+
+```{r opts, echo = FALSE}
+knitr::opts_chunk$set(
+  fig.path = paste0(data_dir, "/img/", str_replace_all(region_name, " ", "_"), "/")
+)
 ```
 
 # `r region_name`
@@ -96,6 +104,7 @@ master <- read_csv(master_csv) %>%
 ```{r map, fig.width = 8, fig.height = 8}
 library(sp)
 library(sf)
+library(ggmap)
 
 coords <- data.frame(
     x = master$x,
@@ -106,9 +115,17 @@ spdf <- SpatialPointsDataFrame(coords = coords, data = master)
 ecoregions <- st_transform(read_sf("/home/steve/OneDrive/nothern-rockies-dryness/data/us_eco_l3/us_eco_l3.shp"), crs = 4326)
 ecoregion <- ecoregions %>% filter(US_L3NAME == region_name)
 
-ggplot(ecoregion) +
-    geom_sf() +
-    geom_point(data = master, aes(x, y, color = maj_veg_cl))
+bbox_ecoregion <- st_bbox(ecoregion)
+bbox <- c(left = bbox_ecoregion$xmin[[1]], bottom = bbox_ecoregion$ymin[[1]], right = bbox_ecoregion$xmax[[1]], top = bbox_ecoregion$ymax[[1]])
+
+basemap <- get_stamenmap(bbox = bbox, zoom = 7, maptype = "terrain")
+
+ggmap(basemap) +
+    geom_sf(data = ecoregion, inherit.aes = FALSE, alpha = 0.15, fill = "red") +
+    geom_point(data = master, aes(x, y, color = maj_veg_cl)) +
+    labs(x = "Longitude",
+         y = "Latitude",
+         title = paste(region_name, "wildfires by cover type"))
 
 summary_tbl <- master %>% group_by(maj_veg_cl) %>% summarise(n = n())
 knitr::kable(summary_tbl)
@@ -252,7 +269,7 @@ wbdata_smoothed_c %>%
 
 # Different Rolling Windows
 
-```{r rolling-windows, fig.width = 5, fig.height = 5, message = F, eval = F}
+```{r rolling-windows, fig.width = 5, fig.height = 5, message = F, eval = T}
 ### TODO
 ### Refactor this so its not copy pasted from above
 
@@ -418,18 +435,18 @@ knitr::kable(nonforest_roc_table_full)
 
 ```
 
-```{r auc-windows-plots, fig.height = 8, fig.width = 8}
+```{r auc-windows-plots, fig.height = 8, fig.width = 8, eval = T}
 forest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
     ggplot() +
     geom_line(mapping = aes(x = window, y = value, color = var), lwd=1) +
-    facet_wrap(~name, ncol = 1) +
+    facet_wrap(~name, ncol = 1, scales = "free") +
     ggtitle(paste(region_name, "Forest AUC and pAUC")) +
     plot_theme + theme(legend.position="bottom")
 
 nonforest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
     ggplot() +
     geom_line(mapping = aes(x = window, y = value, color = var), lwd=1) +
-    facet_wrap(~name, ncol = 1) +
+    facet_wrap(~name, ncol = 1, scales = "free") +
     ggtitle(paste(region_name, "Nonforest AUC and pAUC")) +
     plot_theme + theme(legend.position="bottom")
 ```
@@ -441,6 +458,30 @@ library(GGally)
 
 ggcorr(wbdata_percentiles_forest, method = c("everything", "pearson")) 
 ```
+
+
+<!-- ```{r} -->
+<!-- wbdata_percentiles_forest %>% -->
+<!--     pivot_longer(vars) %>% -->
+<!--     ggplot() + -->
+<!--     geom_boxplot(mapping = aes(x = name, y = value)) + -->
+<!--     facet_wrap(~fire) -->
+
+
+<!-- wbdata_percentiles_nonforest %>% -->
+<!--     pivot_longer(vars) %>% -->
+<!--     ggplot() + -->
+<!--     geom_boxplot(mapping = aes(x = name, y = value)) + -->
+<!--     facet_wrap(~fire) -->
+
+<!-- wbdata_smoothed_collected <- wbdata_smoothed %>% collect() -->
+
+<!-- wbdata_smoothed_collected %>% -->
+<!--     pivot_longer(vars) %>% -->
+<!--     ggplot() + -->
+<!--     geom_boxplot(mapping = aes(x = name, y = value, group = fire)) -->
+
+<!-- ``` -->
 
 <!-- # Autocorrelation -->
 
@@ -574,7 +615,7 @@ par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
 ##                "s" - creates a square plotting region
 ##                "m" - (the default) creates a maximal plotting region
 par(bg="white")
-plot.roc(col="pink",forest_rd_roc, lwd=4, print.auc=FALSE, main = paste(region_name, "Forest ", window, " days"))
+plot.roc(col="pink",forest_rd_roc, lwd=4, print.auc=FALSE, legacy.axes = TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", main = paste(region_name, "Forest ", window, " days"))
 plot.roc(add=TRUE,col="dark blue",forest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="green",forest_t_roc, main="temp", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="red",forest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
@@ -633,7 +674,7 @@ par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
 ##                "s" - creates a square plotting region
 ##                "m" - (the default) creates a maximal plotting region
 par(bg="white")
-plot.roc(col="pink",nonforest_rd_roc, lwd=4, print.auc=FALSE, main = paste(region_name, "Nonforest ", window, " days"))
+plot.roc(col="pink",nonforest_rd_roc, lwd=4, print.auc=FALSE, xlab="False Positive Percentage", ylab="True Postive Percentage", main = paste(region_name, "Nonforest ", window, " days"))
 plot.roc(add=TRUE,col="dark blue",nonforest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="green",nonforest_t_roc, main="temp", lwd=4, print.auc=FALSE)
 plot.roc(add=TRUE,col="red",nonforest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
@@ -713,7 +754,7 @@ ggplot(ignitions_long, aes(x=value, y=Acres, colour=factor(maj_veg_cl))) +
 ```{r wb-vs-logarea, fig.width = 8, fig.height = 8, echo = F, message = F}
 ggplot(ignitions_long, aes(x=value, y=log(Acres), colour=factor(maj_veg_cl))) +
     geom_point(size=3) +
-    geom_smooth(method="lm", se=FALSE) +
+    geom_smooth(method="lm", se=FALSE, formula = y ~ poly(x, 2)) +
     facet_wrap(~name, scales="fixed") +
     labs(title = "", x = "Percentile at Week of Ignition", y = "Area burned (log Acres)", color = NULL)+
     scale_color_manual(values=c("red","black")) +
@@ -1138,11 +1179,31 @@ b1 <- lm$coefficients[[2]]
 b2 <- lm$coefficients[[3]]
 b3 <- lm$coefficients[[4]]
 
-plot(ecdf_fn)
+plot(ecdf_fn, xlab = "Percentile of Deficit", ylab = "Proportion of historical wildfires", main = "eCDF Nonforest Deficit, with ignition danger ratings", xlim = c(0,1))
 points(y = estimated$proportions, x = estimated$quants, col = "blue")
 points(y = estimated$predicted, x = estimated$quants, col = "red")
 curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
 ##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
+low_thresh <- .1
+med_thresh <- .4
+high_thresh <- .7
+x_low <- .46
+segments(-5, low_thresh, x1 = x_low, y1 = low_thresh) ## Low Fire Danger horiz
+text(x = .15, y = low_thresh + 0.02, label = "Low Fire Danger")
+segments(x_low, -5, x1 = x_low, y1 = low_thresh) ## Low Fire Danger vert
+text(x = x_low + .025, y = -.02, label = x_low)
+x_med <- .87
+segments(-5, med_thresh, x1 = x_med, y1 = med_thresh) ## High Fire Danger horiz
+text(x = .15, y = med_thresh + 0.02, label = "Medium Fire Danger")
+segments(x_med, -5, x1 = x_med, y1 = med_thresh) ## High Fire Danger vert
+text(x = x_med + .025, y = -.02, label = x_med)
+x_high <- .96
+segments(-5, high_thresh, x1 = x_high, y1 = high_thresh) ## High Fire Danger horiz
+text(x = .15, y = high_thresh + 0.02, label = "High Fire Danger")
+segments(x_med, -5, x1 = x_high, y1 = high_thresh) ## High Fire Danger vert
+text(x = x_high + .025, y = -.02, label = x_high)
+
+
 
 regression_formulas <- regression_formulas %>%
     add_row(var = "D", order = "3", cover = "nonforest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
@@ -1178,11 +1239,25 @@ b1 <- lm$coefficients[[2]]
 b2 <- lm$coefficients[[3]]
 b3 <- lm$coefficients[[4]]
 
+solve_ecdf <- function(x) {
+    exp(b0 + b1*x + b2*(x^2) + b3*(x^3))
+}
+
 plot(ecdf_fn)
 points(y = estimated$proportions, x = estimated$quants, col = "blue")
 points(y = estimated$predicted, x = estimated$quants, col = "red")
 curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
 ##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
+x_low <- round(log(low_thresh/a)/b,2)
+segments(0, low_thresh, x1 = x_low, y1 = low_thresh) ## Low Fire Danger horiz
+text(x = .3, y = low_thresh + 0.02, label = "Low Fire Danger")
+segments(x_low, 0, x1 = x_low, y1 = low_thresh) ## Low Fire Danger vert
+text(x = x_low, y = -.02, label = x_low)
+x_high <- round(log(high_thresh/a)/b,2)
+segments(0, high_thresh, x1 = x_high, y1 = high_thresh) ## High Fire Danger horiz
+text(x = .3, y = high_thresh + 0.02, label = "High Fire Danger")
+segments(x_high, 0, x1 = x_high, y1 = high_thresh) ## High Fire Danger vert
+text(x = x_high, y = -.02, label = x_high)
 
 regression_formulas <- regression_formulas %>%
     add_row(var = "VPD", order = "3", cover = "nonforest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
@@ -1234,6 +1309,21 @@ $\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
 
 ## Estimated Regression Formulas
 `r knitr::kable(regression_formulas)`
+
+# Create logistic regression object
+
+```{r log-model}
+fire <- wbdata_percentiles_forest$fire
+D <- wbdata_percentiles_forest$D
+
+lm1 <- glm(fire ~ D, family = "binomial")
+summary(lm1)
+
+save(lm1, file = paste0("out/", str_replace(region_name, " ", "_"), "_lm.rda"))
+
+library(effects)
+plot(allEffects(lm1))
+```
 
 # R Version
 
