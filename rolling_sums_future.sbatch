@@ -26,5 +26,5 @@ hostname -s                     # print a message from the compute node
 module load Mamba
 source $HOME/.bashrc
 mamba activate r-test
-Rscript rolling_sums_future.R
+Rscript roll_sums_future.R
 date                            # print the date again
