@@ -99,7 +99,7 @@ for (model in models) {
             print(year)
            
             ncpath <- paste0(in_path, "Deficit_", model, "_", scenario, "_", year, "subset.nc")
-            wbdata_future <- terra::rast(ncpaths_future) %>% subset(year(time(.)) >= 2022)
+            wbdata_future <- terra::rast(ncpath) %>% subset(year(time(.)) >= 2022)
             
             r <- subset(wbdata_future, year(time(wbdata_future)) == year)
 
