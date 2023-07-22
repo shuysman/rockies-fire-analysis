@@ -63,7 +63,11 @@ foreach(model = iter(models)) %:%
                 print(model)
                 print(scenario)
                 print(year)
-                
+
+                ## Need to create this raster separately within each
+                ## parallel process.  SpatRasters are not serializable
+                ## so it cannot be created earlier.  This is not the
+                ## most efficient use of memory.
                 wbdata_historical_smoothed <- rast(ncpaths_historical_smoothed) %>%
                     subset(year(time(.)) <= 2021) %>%
                     subset(yday(time(.)) >= fire_season_start) %>%
