@@ -12,6 +12,7 @@ library(terra)
 terraOptions(verbose = TRUE,
              memfrac = 0.9)
 
+cores <- 8
 rolling_window <- 7
 threshold <- 0.1
 fire_season_start <- 93
@@ -43,7 +44,7 @@ ecdf_regression <- function(x) {
     return(e^(-10.38 + 29.98 * x + -45.25 * x^2 + 25.65 * x^3))
 }
 
-cl <- makeCluster(8)
+cl <- makeCluster(cores)
 doParallel::registerDoParallel(cl)
 
 start.time <- Sys.time()
