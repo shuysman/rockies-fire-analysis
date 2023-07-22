@@ -40,6 +40,7 @@ ncpaths_historical <- list.files(path = hist_path, pattern = "Deficit.*.nc", ful
 ##wbdata_historical_smoothed <-  
 
 foreach(ncpath = iter(ncpaths_historical)) %dopar% {
+    print(ncpath)
     r <- rast(ncpath)
     year <- year(time(ncpath))
     rolled <- terra::roll(r, n = rolling_window, fun = sum, type = "to", circular = FALSE)
