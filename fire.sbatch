@@ -5,7 +5,7 @@
 ## Lines starting with #SBATCH are read by Slurm. Lines starting with ## are comments.
 ## All other lines are read by the shell.
 ##
-#SBATCH --account=legacy-briansmithers        #specify the account to use
+#SBATCH --account=priority-briansmithers        #specify the account to use
 #SBATCH --job-name=fire            # job name
 #SBATCH --partition=legacy              # queue partition to run the job in
 #SBATCH --nodes=10                       # number of nodes to allocate
