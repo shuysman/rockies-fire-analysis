@@ -50,12 +50,12 @@ start.time <- Sys.time()
 
 ncpaths_historical_smoothed <- list.files(path = hist_path, pattern = "Deficit.*.nc", full.names = TRUE)
 
-foreach(model = iter(models),
-        .export = c("rolling_window", "fire_season_start", "fire_season_end", "ecdf_regression"),
-        .packages = c("terra", "lubridate", "dplyr")) %:%
+foreach(model = iter(models)) %:%
     foreach(scenario = iter(scenarios)) %:%
     foreach(year = iter(years),
             .inorder = TRUE,
+            .export = c("rolling_window", "fire_season_start", "fire_season_end", "ecdf_regression"),
+            .packages = c("terra", "lubridate", "dplyr")
             ) %dopar% {
                 print(model)
                 print(scenario)
