@@ -4,4 +4,4 @@ FUTURE_FILE_DIR=/media/smithers/shuysman/data/nps_gridded_wb/gye/forecasts/rolli
 FUTURE_FILES=${FUTURE_FILE_DIR}/*
 N_FILES=$(echo $FUTURE_FILES | wc -w)
 
-sbatch --array=0-${N_FILES} fire.sbatch
+sbatch --array=1-${N_FILES} fire.sbatch
