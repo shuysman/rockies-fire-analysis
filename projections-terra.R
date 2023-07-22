@@ -21,7 +21,7 @@ fire_season_end <- 289
 home_path <- Sys.getenv("HOME")
 in_path <- paste0(home_path, "/data/gye/forecasts")
 ##hist_path <- "/media/smithers/shuysman/data/nps_gridded_wb/gye/historical/"
-hist_path <- paste0(home_path, "/data/gye/historical/")
+hist_path <- paste0(home_path, "/data/gye/historical/rolling_sums/")
 ##out_path <- "/media/smithers/shuysman/data/out/fire/"
 out_path <- "./out/"
 ## nc_data_path <- "/home/steve/Downloads/thredds/"
@@ -85,17 +85,8 @@ clusterExport(cl, "rollapply")
 
 start.time <- Sys.time()
 
-ncpaths_historical <- list.files(path = hist_path, pattern = "Deficit.*.nc", full.names = TRUE)
-wbdata_historical <- rast(ncpaths_historical) %>% subset(year(time(.)) <= 2021)
-##wbdata_historical_smoothed <-  terra::roll(wbdata_historical, n = rolling_window, fun = sum, type = "to", circular = FALSE)
-
-wbdata_historical_smoothed <- terra::app(wbdata_historical, fun = function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right"), cores = cl)
-
-terra::time(wbdata_historical_smoothed) <- terra::time(wbdata_historical)
-
-wbdata_historical_smoothed <- wbdata_historical_smoothed %>%
-    subset(yday(time(.)) >= fire_season_start) %>%
-    subset(yday(time(.)) <= fire_season_end)
+ncpaths_historical_smoothed <- list.files(path = hist_path, pattern = "Deficit.*.nc", full.names = TRUE)
+wbdata_historical_smoothed <- rast(ncpaths_historical_smoothed) %>% subset(year(time(.)) <= 2021)
 
 for (model in models) {
     print(model)
