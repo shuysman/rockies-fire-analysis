@@ -42,7 +42,7 @@ ncpaths_historical <- list.files(path = hist_path, pattern = "Deficit.*.nc", ful
 foreach(ncpath = iter(ncpaths_historical)) %dopar% {
     print(ncpath)
     r <- rast(ncpath)
-    year <- year(time(ncpath))
+    year <- year(time(r))[1]
     rolled <- terra::roll(r, n = rolling_window, fun = sum, type = "to", circular = FALSE)
 
     filename <- paste0("Deficit_", year, "_rolling_sum_", rolling_window, "_day.nc")
