@@ -1,6 +1,7 @@
 library(dplyr)
 library(stringr)
 library(ggplot2)
+library(parallel)
 library(lubridate)
 library(zoo)
 library(terra)
@@ -56,6 +57,10 @@ ecdf_regression <- function(x) {
 
 start.time <- Sys.time()
 
+cl <- makeCluster(cores)
+clusterExport(cl, "percent_rank")
+clusterExport(cl, "ecdf_regression")
+
 ncpaths_historical_smoothed <- list.files(path = hist_path, pattern = "Deficit.*.nc", full.names = TRUE)
 
 wbdata_historical_smoothed <- rast(ncpaths_historical_smoothed) %>%
@@ -78,7 +83,7 @@ for (day in fire_season_start:fire_season_end) {
     future_day <- wbdata_future_smoothed %>% subset(yday(time(.)) == day)
     future_day_plus_historical <- c(future_day, wbdata_historical_smoothed)
     percentiles <- terra::app(future_day_plus_historical,
-                              fun = function(x) percent_rank(x), cores = cores
+                              fun = function(x) percent_rank(x), cores = cl
                               )
     terra::time(percentiles) <- terra::time(future_day_plus_historical)
     ranked_day <- subset(percentiles, yday(time(percentiles)) == day)
@@ -88,10 +93,12 @@ for (day in fire_season_start:fire_season_end) {
 out_file_ranks <- paste0(out_path, "Percentile_Rank_Deficit_all_days_", model, "_", scenario, "_", year, ".nc")
 writeCDF(ranked_year, filename = out_file_ranks, overwrite = TRUE)
 
-fire_risk <- terra::app(ranked_year, fun = function(x) ecdf_regression(x), cores = cores)
+fire_risk <- terra::app(ranked_year, fun = function(x) ecdf_regression(x), cores = cl)
 
 out_file_fire_risk <- paste0(out_path, "Fire_Risk_Deficit_all_days_", model, "_", scenario, "_", year, ".nc")
 writeCDF(days_above_fire_risk, filename = out_file_fire_risk, overwrite = TRUE)
+
+stopCluster(cl)
 
 end.time <- Sys.time()
 time.taken <- round(end.time - start.time,2)
