@@ -34,7 +34,7 @@ scenarios <- c("rcp85", "rcp45")
 ##scenario <- c("rcp45")
 
 ## years <- seq(2024, 2050)
-years <- seq(2050, 2075)
+years <- seq(2023, 2099)
 
 ecdf_regression <- function(x) {
     ## ECDF function generated from dryness_script.Rmd.  This function
