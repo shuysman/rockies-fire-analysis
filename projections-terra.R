@@ -19,7 +19,7 @@ fire_season_end <- 289
 ## ncpath <- "/home/steve/Downloads/thredds/Deficit_NorESM1-M_rcp45_2024subset.nc"
 ##in_path <- "/media/smithers/shuysman/data/nps_gridded_wb/gye/forecasts/"
 home_path <- Sys.getenv("HOME")
-in_path <- paste0(home_path, "/data/gye/forecasts")
+in_path <- paste0(home_path, "/data/gye/forecasts/")
 ##hist_path <- "/media/smithers/shuysman/data/nps_gridded_wb/gye/historical/"
 hist_path <- paste0(home_path, "/data/gye/historical/rolling_sum/")
 ##out_path <- "/media/smithers/shuysman/data/out/fire/"
