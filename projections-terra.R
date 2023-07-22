@@ -86,7 +86,7 @@ foreach(model = iter(models)) %:%
                     percentiles <- terra::app(future_day_plus_historical,
                                             fun = function(x) percent_rank(x), cores = 1
                                             )
-                    terra::time(r_percentiles) <- terra::time(future_day_plus_historical)
+                    terra::time(percentiles) <- terra::time(future_day_plus_historical)
                     ranked_day <- subset(percentiles, yday(time(percentiles)) == yday)
                     ranked_year <- c(ranked_year, ranked_day)
                 }
