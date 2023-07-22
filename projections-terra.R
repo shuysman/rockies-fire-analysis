@@ -33,8 +33,8 @@ fire_season_end <- 289
 home_path <- Sys.getenv("HOME")
 ##future_path <- paste0(home_path, "/data/gye/forecasts/rolling_sum/")
 ##future_path <- paste0("/media/smithers/shuysman/data/nps_gridded_wb/gye/forecasts/rolling_sum/")
-hist_path <- "/media/smithers/shuysman/data/nps_gridded_wb/gye/historical/rolling_sum/"
-##hist_path <- paste0(home_path, "/data/gye/historical/rolling_sum/")
+##hist_path <- "/media/smithers/shuysman/data/nps_gridded_wb/gye/historical/rolling_sum/"
+hist_path <- paste0(home_path, "/data/gye/historical/rolling_sum/")
 ##out_path <- "/media/smithers/shuysman/data/out/fire/"
 out_path <- "./out/"
 ## nc_data_path <- "/home/steve/Downloads/thredds/"
