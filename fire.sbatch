@@ -11,7 +11,7 @@
 #SBATCH --nodes=1                       # number of nodes to allocate
 #SBATCH --ntasks-per-node=1             # number of descrete tasks - keep at one except for MPI
 #SBATCH --cpus-per-task=8              # number of cores to allocate
-#SBATCH --mem=1024G                     # 2000 MB of Memory allocated; set --mem with care
+#SBATCH --mem=1000G                     # 2000 MB of Memory allocated; set --mem with care
 #SBATCH --time=4-00:00:00                 # Maximum job run time
 ##SBATCH --array=1-3                  # Number of jobs in array
 #SBATCH --mail-user=shuysman@gmail.com
