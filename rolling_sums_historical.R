@@ -45,7 +45,7 @@ foreach(ncpath = iter(ncpaths_historical)) %dopar% {
     year <- year(time(ncpath))
     rolled <- terra::roll(r, n = rolling_window, fun = sum, type = "to", circular = FALSE)
 
-    filename <- paste0("Deficit_", year, "rolling_sum_", rolling_window, "_day.nc")
+    filename <- paste0("Deficit_", year, "_rolling_sum_", rolling_window, "_day.nc")
 
     writeCDF(rolled, filename = paste0(out_path, filename), overwrite = TRUE)
 }
