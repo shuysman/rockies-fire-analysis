@@ -40,7 +40,6 @@ foreach(model = iter(models)) %:%
     foreach(scenario = iter(scenarios)) %:%
     foreach(year = iter(years),
             .inorder = TRUE,
-            .export = c("rolling_window", "fire_season_start", "fire_season_end", "ecdf_regression"), ### Probably don't need these exports
             .packages = c("terra", "lubridate", "dplyr")
             ) %dopar% {
                 
