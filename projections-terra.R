@@ -68,13 +68,11 @@ foreach(model = iter(models)) %:%
                     subset(yday(time(.)) <= fire_season_end)
 
                 ncpath <- paste0(in_path, "Deficit_", model, "_", scenario, "_", year, "subset.nc")
-                wbdata_future <- terra::rast(ncpath) %>% subset(year(time(.)) >= 2022)
+                wbdata_future <- terra::rast(ncpath)
                 
-                r <- subset(wbdata_future, year(time(wbdata_future)) == year)
-
                 wbdata_future_smoothed <- terra::roll(wbdata_future, n = rolling_window, fun = sum, type = "to", circular = FALSE)
 
-                terra::time(wbdata_future_smoothed) <- terra::time(r)
+                terra::time(wbdata_future_smoothed) <- terra::time(wbdata_future)
                 
                 wbdata_future_smoothed <- wbdata_future_smoothed %>%
                     subset(yday(time(.)) >= fire_season_start) %>%
