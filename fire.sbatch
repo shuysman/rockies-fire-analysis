@@ -8,7 +8,7 @@
 #SBATCH --account=priority-briansmithers        #specify the account to use
 #SBATCH --job-name=fire            # job name
 #SBATCH --partition=legacy              # queue partition to run the job in
-#SBATCH --nodes=10                       # number of nodes to allocate
+#SBATCH --nodes=1                       # number of nodes to allocate
 #SBATCH --ntasks-per-node=1             # number of descrete tasks - keep at one except for MPI
 #SBATCH --cpus-per-task=4              # number of cores to allocate
 ##SBATCH --mem=50G                     # 2000 MB of Memory allocated; set --mem with care
@@ -17,8 +17,8 @@
 ##SBATCH --array=1-3                  # Number of jobs in array
 #SBATCH --mail-user=shuysman@gmail.com
 #SBATCH --mail-type=ALL
-#SBATCH --output=fire-%j.out
-#SBATCH --error=fire-%j.err
+#SBATCH --output=fire-%A-%a.out
+#SBATCH --error=fire-%A-%a.err
 
 ## Run 'man sbatch' for more information on the options above.
 FUTURE_FILE_DIR=/media/smithers/shuysman/data/nps_gridded_wb/gye/forecasts/rolling_sum/
