@@ -5,8 +5,9 @@ library(parallel)
 library(iterators)
 ##library(foreach)
 library(lubridate)
-library(terra)
 library(zoo)
+library(terra)
+
 
 terraOptions(verbose = TRUE,
              memfrac = 0.7)
