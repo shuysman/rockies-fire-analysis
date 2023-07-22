@@ -71,10 +71,8 @@ foreach(model = iter(models)) %:%
                 
                 r <- subset(wbdata_future, year(time(wbdata_future)) == year)
 
-                wbdata_future_smoothed <- terra::roll(wbdata_future, n = rolling_window, fun = sum, type = "to", circular = FALSE) %>% subset(any(day(time(.)) >= fire_season_start, day(time(.)) <= fire_season_end))
+                wbdata_future_smoothed <- terra::roll(wbdata_future, n = rolling_window, fun = sum, type = "to", circular = FALSE)
 
-                ##wbdata_future_smoothed <- terra::app(r, fun = function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right"), cores = 1)
-                
                 terra::time(wbdata_future_smoothed) <- terra::time(r)
                 
                 wbdata_future_smoothed <- wbdata_future_smoothed %>%
