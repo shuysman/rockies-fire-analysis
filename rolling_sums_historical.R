@@ -47,7 +47,7 @@ foreach(ncpath = iter(ncpaths_historical)) %dopar% {
 
     filename <- paste0("Deficit_", year, "rolling_sum_", rolling_window, "_day.nc")
 
-    writeCDF(rolled, filename = paste0(out_path, filename))
+    writeCDF(rolled, filename = paste0(out_path, filename), overwrite = TRUE)
 }
 
 stopCluster(cl)
