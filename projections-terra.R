@@ -95,15 +95,11 @@ for (model in models) {
     print(model)
     for (scenario in scenarios) {
         print(scenario)
-
-        ncpaths_future <- list.files(path = in_path, pattern = paste0("Deficit_", model, "_", scenario, ".*.nc"), full.names = TRUE)
-        wbdata_future <- terra::rast(ncpaths_future) %>% subset(year(time(.)) >= 2022)
-        
-        wbdata_percentiles <- rast()
         for (year in years) {
             print(year)
-
-            ##year <- 2025
+           
+            ncpath <- paste0(in_path, "Deficit_", model, "_", scenario, "_", year, "subset.nc")
+            wbdata_future <- terra::rast(ncpaths_future) %>% subset(year(time(.)) >= 2022)
             
             r <- subset(wbdata_future, year(time(wbdata_future)) == year)
 
@@ -124,30 +120,27 @@ for (model in models) {
 
             terra::time(r_percentiles) <- terra::time(r_smoothed_plus_historical)
             ranked_year <- subset(r_percentiles, year(time(r_percentiles)) == year)
-            wbdata_percentiles <- c(wbdata_percentiles, ranked_year)
             
+            ##wbdata_future_smoothed <- terra::roll(wbdata_future, n = rolling_window, fun = sum, type = "to", circular = FALSE)
+            ##wbdata_future_smoothed <- rolling_sum_ncpaths(ncpaths_future)
+            
+            ##wbdata_future_smoothed <- wbdata_future_smoothed %>%
+            ##    subset(any(day(time(.)) >= fire_season_start, day(time(.)) <= fire_season_end))
+            
+            ## wbdata_percentiles <- terra::app(wbdata_smoothed,
+            ##     fun = function(x) percent_rank(x), cores = cl
+            ## )
+            
+            above_fire_risk <- terra::app(ranked_year, fun = function(x) if_else(ecdf_regression(x) >= threshold, 1, 0), cores = cl)
+            terra::time(above_fire_risk) <- terra::time(ranked_year)
+
+            days_above_fire_risk <- terra::tapp(above_fire_risk, index = "years", fun = "sum", na.rm = TRUE)
+
+            mean_days_above_fire_risk <- mean(days_above_fire_risk, na.rm = TRUE)
+
+            writeCDF(days_above_fire_risk, filename = paste0(out_path, "Days_Above_Fire_Risk_Deficit_all_days_", model, "_", scenario, "_", year, ".nc"), overwrite = TRUE)
+            writeCDF(mean_days_above_fire_risk, filename = paste0(out_path, "Mean_Days_Above_Fire_Risk_Deficit_", model, "_", scenario, "_", years[1], "-", tail(years, 1), ".nc"), overwrite = TRUE)
         }
-        
-        ##wbdata_future_smoothed <- terra::roll(wbdata_future, n = rolling_window, fun = sum, type = "to", circular = FALSE)
-        ##wbdata_future_smoothed <- rolling_sum_ncpaths(ncpaths_future)
-        
-        ##wbdata_future_smoothed <- wbdata_future_smoothed %>%
-        ##    subset(any(day(time(.)) >= fire_season_start, day(time(.)) <= fire_season_end))
-        
-        ## wbdata_percentiles <- terra::app(wbdata_smoothed,
-        ##     fun = function(x) percent_rank(x), cores = cl
-        ## )
-        
-        above_fire_risk <- terra::app(wbdata_percentiles, fun = function(x) if_else(ecdf_regression(x) >= threshold, 1, 0), cores = cl)
-        terra::time(above_fire_risk) <- terra::time(wbdata_percentiles)
-
-        days_above_fire_risk <- terra::tapp(above_fire_risk, index = "years", fun = "sum", na.rm = TRUE)
-
-        days_above_fire_risk_all_years <- mean(days_above_fire_risk, na.rm = TRUE)
-
-        writeCDF(days_above_fire_risk, filename = paste0(out_path, "Days_Above_Fire_Risk_Deficit_", model, "_", scenario, "_", years[1], "-", tail(years, 1), ".nc"), overwrite = TRUE)
-        writeCDF(days_above_fire_risk_all_years, filename = paste0(out_path, "Mean_Days_Above_Fire_Risk_Deficit_", model, "_", scenario, "_", years[1], "-", tail(years, 1), ".nc"), overwrite = TRUE)
-
     }
 }
 
