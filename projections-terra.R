@@ -23,7 +23,7 @@ print(model)
 print(scenario)
 print(year)
 
-cores <- 1
+cores <- 32
 rolling_window <- 7
 threshold <- 0.1
 fire_season_start <- 93
