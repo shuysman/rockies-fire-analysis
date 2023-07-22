@@ -81,7 +81,7 @@ foreach(model = iter(models)) %:%
                 ## Return a SpatRaster with each layer having that day's percentiles compared to historical values
                 ## "How extreme is this day compared to the history of the pixel?"
                 ranked_year <- rast()
-                for (day in 1:365) {
+                for (day in fire_season_start:fire_season_end) {
                     future_day <- wbdata_future_smoothed %>% subset(yday(time(.)) == day)
                     future_day_plus_historical <- c(future_day, wbdata_historical_smoothed)
                     percentiles <- terra::app(future_day_plus_historical,
