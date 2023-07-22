@@ -72,7 +72,7 @@ ecdf_regression <- function(x) {
 ##     return(r)
 ## }
 
-cl <- makeCluster(24)
+cl <- makeCluster(48)
 ##doParallel::registerDoParallel(cl)
 clusterExport(cl, "ecdf_regression")
 clusterExport(cl, "percent_rank")
