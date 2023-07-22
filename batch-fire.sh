@@ -4,4 +4,5 @@ FUTURE_FILE_DIR=/media/smithers/shuysman/data/nps_gridded_wb/gye/forecasts/rolli
 FUTURE_FILES=(${FUTURE_FILE_DIR}/*)
 N_FILES=${#FUTURE_FILES[@]}
 
-sbatch --array=0-${N_FILES} fire.sbatch
+sbatch --array=0-$(($N_FILES-1))%20 fire.sbatch
+
