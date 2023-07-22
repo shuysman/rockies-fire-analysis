@@ -21,13 +21,14 @@
 #SBATCH --error=fire-%A-%a.err
 
 ## Run 'man sbatch' for more information on the options above.
-FUTURE_FILE_DIR=/media/smithers/shuysman/data/nps_gridded_wb/gye/forecasts/rolling_sum/
+FUTURE_FILE_DIR=${HOME}/data/gye/forecasts/rolling_sum/
 FUTURE_FILES=(${FUTURE_FILE_DIR}/*)
+FILE=${FUTURE_FILES[$SLURM_ARRAY_TASK_ID]}
 
 date                            # print out the date
 hostname -s                     # print a message from the compute node
 module load Mamba
 source $HOME/.bashrc
 mamba activate r-test
-Rscript projections-terra.R ${FUTURE_FILES[$SLURM_ARRAY_TASK_ID]}
+Rscript projections-terra.R $FILE
 date                            # print the date again
