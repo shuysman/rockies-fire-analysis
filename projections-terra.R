@@ -77,20 +77,27 @@ foreach(model = iter(models)) %:%
                     subset(yday(time(.)) >= fire_season_start) %>%
                     subset(yday(time(.)) <= fire_season_end)
 
-                r_smoothed_plus_historical <- c(wbdata_future_smoothed, wbdata_historical_smoothed)
-                r_percentiles <- terra::app(r_smoothed_plus_historical,
+                ranked_year <- rast()
+                for (day in 1:365) {
+                    future_day <- wbdata_future_smoothed %>% subset(yday(time(.)) == day)
+                    future_day_plus_historical <- c(future_day, wbdata_historical_smoothed)
+                    percentiles <- terra::app(future_day_plus_historical,
                                             fun = function(x) percent_rank(x), cores = 1
                                             )
+                    terra::time(r_percentiles) <- terra::time(future_day_plus_historical)
+                    ranked_day <- subset(percentiles, yday(time(percentiles)) == yday)
+                    ranked_year <- c(ranked_year, ranked_day)
+                }
 
-                terra::time(r_percentiles) <- terra::time(r_smoothed_plus_historical)
-                ranked_year <- subset(r_percentiles, year(time(r_percentiles)) == year)
+                out_file_ranks <- paste0(out_path, "Percentile_Rank_Deficit_all_days_", model, "_", scenario, "_", year, ".nc")
+                writeCDF(ranked_year, filename = out_file_ranks, overwrite = TRUE)
                 
                 fire_risk <- terra::app(ranked_year, fun = function(x) ecdf_regression(x), cores = 1)
 
-                out_file <- paste0(out_path, "Fire_Risk_Deficit_all_days_", model, "_", scenario, "_", year, ".nc")
-                writeCDF(days_above_fire_risk, filename = out_file, overwrite = TRUE)
+                out_file_fire_risk <- paste0(out_path, "Fire_Risk_Deficit_all_days_", model, "_", scenario, "_", year, ".nc")
+                writeCDF(days_above_fire_risk, filename = out_file_fire_risk, overwrite = TRUE)
 
-                out_file
+                out_file_fire_risk
             }
 
 stopCluster(cl)
