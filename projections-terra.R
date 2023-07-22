@@ -28,12 +28,9 @@ out_path <- "./out/"
 
 ## models <- c('NorESM1-M', 'MRI-CGCM3','MIROC-ESM-CHEM', 'MIROC5','IPSL-CM5A-LR','inmcm4','HadGEM2-CC365','CSIRO-Mk3-6-0','CNRM-CM5','CanESM2', 'BNU-ESM','CCSM4', 'GFDL-ESM2G')
 models <- c("NorESM1-M", "MRI-CGCM3", "MIROC5", "IPSL-CM5A-LR", "inmcm4", "HadGEM2-CC365", "CSIRO-Mk3-6-0", "CNRM-CM5", "CanESM2", "BNU-ESM", "CCSM4", "GFDL-ESM2G") ## MIROC-ESM-CHEM >2070 rcp45 futures are missing
-##model <- c("NorESM1-M")
 
 scenarios <- c("rcp85", "rcp45")
-##scenario <- c("rcp45")
 
-## years <- seq(2024, 2050)
 years <- seq(2023, 2099)
 
 ecdf_regression <- function(x) {
@@ -45,32 +42,6 @@ ecdf_regression <- function(x) {
     e <- exp(1)
     return(e^(-10.38 + 29.98 * x + -45.25 * x^2 + 25.65 * x^3))
 }
-
-## rank_day_historical <- function(wb_day) {
-##     ## Add layer for single day to historical data set, calculate percent_rank and return percent rankile for input day
-##     ## We want to rank each day individually against the history, to see how dry each day in projection is relative
-##     ## to the history
-##     t <- time(wb_day)
-##     r <- c(wb_day, wbdata_historical)
-##     r <- terra::app(r, fun = function(x) percent_rank(x), cores = cl)
-##     r_day <- subset(r, 1)
-##     time(r_day) <- t
-##     return(r_day)
-## }
-
-## rolling_sum_ncpaths <- function(ncpaths) {
-##     ## r <- foreach(i = 1:length(ncpaths), .combine = c) %dopar% {
-##     ##     terra::roll(terra::rast(ncpaths[i]), n = rolling_window, fun = sum, type = "to", circular = FALSE)
-##     ## }
-##     ## return(r)
-##     r <- rast()
-##     for (ncpath in ncpaths) {
-##         r2 <- terra::rast(ncpath)
-##         r2_smooth <- terra::roll(r2, n = rolling_window, fun = sum, type = "to", circular = FALSE)
-##         r <- c(r, r2_smooth)
-##     }
-##     return(r)
-## }
 
 cl <- makeCluster(48)
 ##doParallel::registerDoParallel(cl)
@@ -121,25 +92,9 @@ for (model in models) {
             terra::time(r_percentiles) <- terra::time(r_smoothed_plus_historical)
             ranked_year <- subset(r_percentiles, year(time(r_percentiles)) == year)
             
-            ##wbdata_future_smoothed <- terra::roll(wbdata_future, n = rolling_window, fun = sum, type = "to", circular = FALSE)
-            ##wbdata_future_smoothed <- rolling_sum_ncpaths(ncpaths_future)
-            
-            ##wbdata_future_smoothed <- wbdata_future_smoothed %>%
-            ##    subset(any(day(time(.)) >= fire_season_start, day(time(.)) <= fire_season_end))
-            
-            ## wbdata_percentiles <- terra::app(wbdata_smoothed,
-            ##     fun = function(x) percent_rank(x), cores = cl
-            ## )
-            
-            above_fire_risk <- terra::app(ranked_year, fun = function(x) if_else(ecdf_regression(x) >= threshold, 1, 0), cores = cl)
-            terra::time(above_fire_risk) <- terra::time(ranked_year)
+            fire_risk <- terra::app(ranked_year, fun = function(x) ecdf_regression(x), cores = cl)
 
-            days_above_fire_risk <- terra::tapp(above_fire_risk, index = "years", fun = "sum", na.rm = TRUE)
-
-            mean_days_above_fire_risk <- mean(days_above_fire_risk, na.rm = TRUE)
-
-            writeCDF(days_above_fire_risk, filename = paste0(out_path, "Days_Above_Fire_Risk_Deficit_all_days_", model, "_", scenario, "_", year, ".nc"), overwrite = TRUE)
-            writeCDF(mean_days_above_fire_risk, filename = paste0(out_path, "Mean_Days_Above_Fire_Risk_Deficit_", model, "_", scenario, "_", years[1], "-", tail(years, 1), ".nc"), overwrite = TRUE)
+            writeCDF(days_above_fire_risk, filename = paste0(out_path, "Fire_Risk_Deficit_all_days_", model, "_", scenario, "_", year, ".nc"), overwrite = TRUE)
         }
     }
 }
