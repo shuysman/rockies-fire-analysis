@@ -14,7 +14,7 @@ library(lubridate)
 library(terra)
 
 terraOptions(verbose = TRUE,
-             memfrac = 0.7)
+             memfrac = 0.9)
 
 rolling_window <- 7
 threshold <- 0.1
