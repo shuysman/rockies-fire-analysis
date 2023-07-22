@@ -77,6 +77,9 @@ foreach(model = iter(models)) %:%
                     subset(yday(time(.)) >= fire_season_start) %>%
                     subset(yday(time(.)) <= fire_season_end)
 
+                ## Loop through each day in the year, and rank each day separately against the historical deficit rolling sums
+                ## Return a SpatRaster with each layer having that day's percentiles compared to historical values
+                ## "How extreme is this day compared to the history of the pixel?"
                 ranked_year <- rast()
                 for (day in 1:365) {
                     future_day <- wbdata_future_smoothed %>% subset(yday(time(.)) == day)
