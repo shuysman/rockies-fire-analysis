@@ -7,7 +7,7 @@
 ##
 #SBATCH --account=priority-briansmithers        #specify the account to use
 #SBATCH --job-name=fire            # job name
-#SBATCH --partition=priority              # queue partition to run the job in
+#SBATCH --partition=legacy              # queue partition to run the job in
 #SBATCH --nodes=1                       # number of nodes to allocate
 #SBATCH --ntasks-per-node=1             # number of descrete tasks - keep at one except for MPI
 #SBATCH --cpus-per-task=1              # number of cores to allocate
