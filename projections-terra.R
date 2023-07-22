@@ -93,9 +93,6 @@ fire_risk <- terra::app(ranked_year, fun = function(x) ecdf_regression(x), cores
 out_file_fire_risk <- paste0(out_path, "Fire_Risk_Deficit_all_days_", model, "_", scenario, "_", year, ".nc")
 writeCDF(days_above_fire_risk, filename = out_file_fire_risk, overwrite = TRUE)
 
-out_file_fire_risk
-
-
 end.time <- Sys.time()
 time.taken <- round(end.time - start.time,2)
 time.taken
