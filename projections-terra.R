@@ -15,9 +15,9 @@ terraOptions(verbose = TRUE,
 args <- commandArgs(TRUE)
 future_file <- args[1]
 split <- str_split(future_file, "_")[[1]]
-model <- split[8]
-scenario <- split[9]
-year <- str_split(split[10], "\\.")[[1]][1]
+model <- split[6]
+scenario <- split[7]
+year <- str_split(split[8], "\\.")[[1]][1]
 
 print(model)
 print(scenario)
