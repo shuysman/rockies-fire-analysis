@@ -45,14 +45,6 @@ ecdf_regression <- function(x) {
 
 cl <- makeCluster(8)
 doParallel::registerDoParallel(cl)
-clusterExport(cl, "ecdf_regression")
-clusterExport(cl, "percent_rank")
-clusterExport(cl, "if_else")
-clusterExport(cl, "fire_season_start")
-clusterExport(cl, "fire_season_end")
-clusterExport(cl, "threshold")
-clusterExport(cl, "rolling_window")
-clusterExport(cl, "rollapply")
 
 start.time <- Sys.time()
 
