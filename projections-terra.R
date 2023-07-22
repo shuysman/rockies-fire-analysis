@@ -8,6 +8,9 @@ library(lubridate)
 library(zoo)
 library(terra)
 
+## Precalculate historical and future rolling sum files with rolling_sums_future.R and rolling_sums_historical.R scripts first
+## Set future_path, and hist_path to the dirs containing these files.
+## Same rolling window should be used to run both scripts
 
 terraOptions(verbose = TRUE,
              memfrac = 0.9)
@@ -20,7 +23,7 @@ fire_season_end <- 289
 ## ncpath <- "/home/steve/Downloads/thredds/Deficit_NorESM1-M_rcp45_2024subset.nc"
 ##in_path <- "/media/smithers/shuysman/data/nps_gridded_wb/gye/forecasts/"
 home_path <- Sys.getenv("HOME")
-in_path <- paste0(home_path, "/data/gye/forecasts/")
+future_path <- paste0(home_path, "/data/gye/forecasts/rolling_sum/")
 ##hist_path <- "/media/smithers/shuysman/data/nps_gridded_wb/gye/historical/"
 hist_path <- paste0(home_path, "/data/gye/historical/rolling_sum/")
 ##out_path <- "/media/smithers/shuysman/data/out/fire/"
@@ -66,14 +69,10 @@ foreach(model = iter(models)) %:%
                     subset(year(time(.)) <= 2021) %>%
                     subset(yday(time(.)) >= fire_season_start) %>%
                     subset(yday(time(.)) <= fire_season_end)
-
-                ncpath <- paste0(in_path, "Deficit_", model, "_", scenario, "_", year, "subset.nc")
-                wbdata_future <- terra::rast(ncpath)
                 
-                wbdata_future_smoothed <- terra::roll(wbdata_future, n = rolling_window, fun = sum, type = "to", circular = FALSE)
+                ncpath_future_smoothed <- paste0(future_path, "Deficit_rolling_sum_", rolling_window, "_", model, "_", scenario, "_", year, ".nc")
+                wbdata_future_smoothed <- terra::rast(ncpath_future_smoothed)
 
-                terra::time(wbdata_future_smoothed) <- terra::time(wbdata_future)
-                
                 wbdata_future_smoothed <- wbdata_future_smoothed %>%
                     subset(yday(time(.)) >= fire_season_start) %>%
                     subset(yday(time(.)) <= fire_season_end)
