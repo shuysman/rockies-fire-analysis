@@ -14,7 +14,7 @@
 #SBATCH --mem=75G                     # 2000 MB of Memory allocated; set --mem with care
 ##SBATCH --mem-per-cpu=100G
 #SBATCH --time=7-00:00:00                 # Maximum job run time
-#SBATCH --array=0-1847%10                  # Number of jobs in array
+##SBATCH --array=0-1847%10                  # Number of jobs in array
 #SBATCH --mail-user=shuysman@gmail.com
 #SBATCH --mail-type=ALL
 #SBATCH --output=fire-%A-%a.out
