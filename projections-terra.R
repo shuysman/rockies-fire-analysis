@@ -101,6 +101,7 @@ for (model in models) {
         
         wbdata_percentiles <- rast()
         for (year in years) {
+            print(year)
 
             ##year <- 2025
             
