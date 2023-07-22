@@ -3,7 +3,7 @@ library(dplyr)
 library(ggplot2)
 library(parallel)
 library(iterators)
-##library(foreach)
+library(foreach)
 library(lubridate)
 library(zoo)
 library(terra)
@@ -43,8 +43,8 @@ ecdf_regression <- function(x) {
     return(e^(-10.38 + 29.98 * x + -45.25 * x^2 + 25.65 * x^3))
 }
 
-cl <- makeCluster(48)
-##doParallel::registerDoParallel(cl)
+cl <- makeCluster(8)
+doParallel::registerDoParallel(cl)
 clusterExport(cl, "ecdf_regression")
 clusterExport(cl, "percent_rank")
 clusterExport(cl, "if_else")
@@ -57,47 +57,53 @@ clusterExport(cl, "rollapply")
 start.time <- Sys.time()
 
 ncpaths_historical_smoothed <- list.files(path = hist_path, pattern = "Deficit.*.nc", full.names = TRUE)
-wbdata_historical_smoothed <- rast(ncpaths_historical_smoothed) %>%
-    subset(year(time(.)) <= 2021) %>%
-    subset(yday(time(.)) >= fire_season_start) %>%
-    subset(yday(time(.)) <= fire_season_end)
 
-for (model in models) {
-    print(model)
-    for (scenario in scenarios) {
-        print(scenario)
-        for (year in years) {
-            print(year)
-           
-            ncpath <- paste0(in_path, "Deficit_", model, "_", scenario, "_", year, "subset.nc")
-            wbdata_future <- terra::rast(ncpath) %>% subset(year(time(.)) >= 2022)
-            
-            r <- subset(wbdata_future, year(time(wbdata_future)) == year)
+foreach(model = iter(models),
+        .export = c("rolling_window", "fire_season_start", "fire_season_end", "ecdf_regression"),
+        .packages = c("terra", "lubridate", "dplyr",)) %:%
+    foreach(scenario = iter(scenarios)) %:%
+    foreach(year = iter(years),
+            .inorder = TRUE,
+            ) %dopar% {
+                print(model)
+                print(scenario)
+                print(year)
+                
+                wbdata_historical_smoothed <- rast(ncpaths_historical_smoothed) %>%
+                    subset(year(time(.)) <= 2021) %>%
+                    subset(yday(time(.)) >= fire_season_start) %>%
+                    subset(yday(time(.)) <= fire_season_end)
 
-            ##wbdata_future_smoothed <- terra::roll(wbdata_future, n = rolling_window, fun = sum, type = "to", circular = FALSE) %>% subset(any(day(time(.)) >= fire_season_start, day(time(.)) <= fire_season_end))
+                ncpath <- paste0(in_path, "Deficit_", model, "_", scenario, "_", year, "subset.nc")
+                wbdata_future <- terra::rast(ncpath) %>% subset(year(time(.)) >= 2022)
+                
+                r <- subset(wbdata_future, year(time(wbdata_future)) == year)
 
-            wbdata_future_smoothed <- terra::app(r, fun = function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right"), cores = cl)
-            
-            terra::time(wbdata_future_smoothed) <- terra::time(r)
-            
-            wbdata_future_smoothed <- wbdata_future_smoothed %>%
-                subset(yday(time(.)) >= fire_season_start) %>%
-                subset(yday(time(.)) <= fire_season_end)
+                wbdata_future_smoothed <- terra::roll(wbdata_future, n = rolling_window, fun = sum, type = "to", circular = FALSE) %>% subset(any(day(time(.)) >= fire_season_start, day(time(.)) <= fire_season_end))
 
-            r_smoothed_plus_historical <- c(wbdata_future_smoothed, wbdata_historical_smoothed)
-            r_percentiles <- terra::app(r_smoothed_plus_historical,
-                                        fun = function(x) percent_rank(x), cores = cl
-                                        )
+                ##wbdata_future_smoothed <- terra::app(r, fun = function (x) rollapply(x, rolling_window, sum, by = 1, partial = FALSE, fill = NA, align = "right"), cores = 1)
+                
+                terra::time(wbdata_future_smoothed) <- terra::time(r)
+                
+                wbdata_future_smoothed <- wbdata_future_smoothed %>%
+                    subset(yday(time(.)) >= fire_season_start) %>%
+                    subset(yday(time(.)) <= fire_season_end)
 
-            terra::time(r_percentiles) <- terra::time(r_smoothed_plus_historical)
-            ranked_year <- subset(r_percentiles, year(time(r_percentiles)) == year)
-            
-            fire_risk <- terra::app(ranked_year, fun = function(x) ecdf_regression(x), cores = cl)
+                r_smoothed_plus_historical <- c(wbdata_future_smoothed, wbdata_historical_smoothed)
+                r_percentiles <- terra::app(r_smoothed_plus_historical,
+                                            fun = function(x) percent_rank(x), cores = 1
+                                            )
 
-            writeCDF(days_above_fire_risk, filename = paste0(out_path, "Fire_Risk_Deficit_all_days_", model, "_", scenario, "_", year, ".nc"), overwrite = TRUE)
-        }
-    }
-}
+                terra::time(r_percentiles) <- terra::time(r_smoothed_plus_historical)
+                ranked_year <- subset(r_percentiles, year(time(r_percentiles)) == year)
+                
+                fire_risk <- terra::app(ranked_year, fun = function(x) ecdf_regression(x), cores = 1)
+
+                out_file <- paste0(out_path, "Fire_Risk_Deficit_all_days_", model, "_", scenario, "_", year, ".nc")
+                writeCDF(days_above_fire_risk, filename = out_file, overwrite = TRUE)
+
+                out_file
+            }
 
 stopCluster(cl)
 
