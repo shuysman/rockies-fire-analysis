@@ -10,14 +10,14 @@
 #SBATCH --partition=priority              # queue partition to run the job in
 #SBATCH --nodes=1                       # number of nodes to allocate
 #SBATCH --ntasks-per-node=1             # number of descrete tasks - keep at one except for MPI
-#SBATCH --cpus-per-task=24              # number of cores to allocate
+#SBATCH --cpus-per-task=48              # number of cores to allocate
 #SBATCH --mem=512G                     # 2000 MB of Memory allocated; set --mem with care
 #SBATCH --time=1-00:00:00                 # Maximum job run time
 ##SBATCH --array=1-3                  # Number of jobs in array
 #SBATCH --mail-user=shuysman@gmail.com
 #SBATCH --mail-type=ALL
-#SBATCH --output=example-%j.out
-#SBATCH --error=example-%j.err
+#SBATCH --output=fire-%j.out
+#SBATCH --error=fire-%j.err
 
 ## Run 'man sbatch' for more information on the options above.
 
