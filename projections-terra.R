@@ -86,7 +86,10 @@ clusterExport(cl, "rollapply")
 start.time <- Sys.time()
 
 ncpaths_historical_smoothed <- list.files(path = hist_path, pattern = "Deficit.*.nc", full.names = TRUE)
-wbdata_historical_smoothed <- rast(ncpaths_historical_smoothed) %>% subset(year(time(.)) <= 2021)
+wbdata_historical_smoothed <- rast(ncpaths_historical_smoothed) %>%
+    subset(year(time(.)) <= 2021) %>%
+    subset(yday(time(.)) >= fire_season_start) %>%
+    subset(yday(time(.)) <= fire_season_end)
 
 for (model in models) {
     print(model)
