@@ -9,9 +9,8 @@ library(dplyr)
 library(ggplot2)
 library(parallel)
 library(iterators)
-##library(foreach)
+library(foreach)
 library(lubridate)
-library(zoo)
 library(terra)
 
 terraOptions(verbose = TRUE,
@@ -28,14 +27,11 @@ hist_path <- "/media/smithers/shuysman/data/nps_gridded_wb/gye/historical/"
 out_path <- "./out/"
 
 cl <- makeCluster(24)
-clusterExport(cl, "ecdf_regression")
-clusterExport(cl, "percent_rank")
-clusterExport(cl, "if_else")
-clusterExport(cl, "fire_season_start")
-clusterExport(cl, "fire_season_end")
-clusterExport(cl, "threshold")
+doParallel::registerDoParallel(cl)
 clusterExport(cl, "rolling_window")
-clusterExport(cl, "rollapply")
+clusterEvalQ(cl, library("lubridate"))
+clusterEvalQ(cl, library("terra"))
+
 
 start.time <- Sys.time()
 
@@ -44,11 +40,17 @@ ncpaths_historical <- list.files(path = hist_path, pattern = "Deficit.*.nc", ful
 ##wbdata_historical_smoothed <-  
 
 foreach(ncpath = iter(ncpaths_historical)) %dopar% {
-    r < rast(ncpath)
-    year <- year(ncpath)
-    rolled <- terra::roll(wbdata_historical, n = rolling_window, fun = sum, type = "to", circular = FALSE)
+    r <- rast(ncpath)
+    year <- year(time(ncpath))
+    rolled <- terra::roll(r, n = rolling_window, fun = sum, type = "to", circular = FALSE)
 
     filename <- paste0("Deficit_", year, "rolling_sum_", rolling_window, "_day.nc")
 
     writeCDF(rolled, filename = paste0(out_path, filename))
 }
+
+stopCluster(cl)
+
+end.time <- Sys.time()
+time.taken <- round(end.time - start.time,2)
+time.taken
