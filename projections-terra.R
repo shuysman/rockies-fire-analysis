@@ -86,7 +86,9 @@ for (day in fire_season_start:fire_season_end) {
                               fun = function(x) percent_rank(x), cores = cl
                               )
     terra::time(percentiles) <- terra::time(future_day_plus_historical)
-    ranked_day <- subset(percentiles, yday(time(percentiles)) == day)
+    ranked_day <- percentiles %>%
+        subset(year(time(.)) == year) %>%
+        subset(yday(time(.)) == day)
     ranked_year <- c(ranked_year, ranked_day)
 }
 
