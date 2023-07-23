@@ -20,8 +20,8 @@
 #SBATCH --mail-type=ALL
 ##SBATCH --output=fire-%A-%a.out
 ##SBATCH --error=fire-%A-%a.err
-##SBATCH --output=fire-%j.out
-##SBATCH --error=fire-%j.err
+#SBATCH --output=fire-%j.out
+#SBATCH --error=fire-%j.err
 
 ## Run 'man sbatch' for more information on the options above.
 FUTURE_FILE_DIR=${HOME}/data/gye/forecasts/rolling_sum/
