@@ -25,7 +25,7 @@
 
 
 MODELS=("NorESM1-M" "MRI-CGCM3" "MIROC5" "IPSL-CM5A-LR" "inmcm4" "HadGEM2-CC365" "CSIRO-Mk3-6-0" "CNRM-CM5" "CanESM2" "BNU-ESM" "CCSM4" "GFDL-ESM2G")
-SCENARIOS=("rcp45" "rcp85")
+##SCENARIOS=("rcp45" "rcp85")
 ##FUTURE_FILE_DIR=${HOME}/data/gye/forecasts/rolling_sum/
 ##FILES="${FUTURE_FILE_DIR}Deficit_rolling_sum_7_${MODELS[$SLURM_ARRAY_TASK_ID]}_${SCENARIOS[$((${SLURM_ARRAY_TASK_ID} % 2))]}_*.nc"
 
@@ -34,5 +34,6 @@ hostname -s                     # print a message from the compute node
 module load Mamba
 source $HOME/.bashrc
 mamba activate r-test
-Rscript projections-terra.R $MODELS[$SLURM_ARRAY_TASK_ID] $SCENARIOS[$((${SLURM_ARRAY_TASK_ID} % 2))]
+Rscript projections-terra.R $MODELS[$SLURM_ARRAY_TASK_ID] rcp45
+Rscript projections-terra.R $MODELS[$SLURM_ARRAY_TASK_ID] rcp85
 date                            # print the date again
