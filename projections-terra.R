@@ -38,7 +38,7 @@ future_path <- paste0(home_path, "/data/gye/forecasts/rolling_sum/")
 ##future_path <- paste0("/media/smithers/shuysman/data/nps_gridded_wb/gye/forecasts/rolling_sum/")
 ##hist_path <- "/media/smithers/shuysman/data/nps_gridded_wb/gye/historical/rolling_sum/"
 ##quants_path <- "/home/steve/OneDrive/nothern-rockies-dryness/out/Deficit_historical_quants_0.79_0.845_0.875_.nc"
-quants_path <- paste0(home_path, "/data/gye/historical/rolling_sum/Deficit_historical_quants_0.79_0.845_0.875_.nc"
+quants_path <- paste0(home_path, "/data/gye/historical/rolling_sum/Deficit_historical_quants_0.79_0.845_0.875_.nc")
 hist_path <- paste0(home_path, "/data/gye/historical/rolling_sum/")
 ##out_path <- "/media/smithers/shuysman/data/out/fire/"
 out_path <- "./out/"
