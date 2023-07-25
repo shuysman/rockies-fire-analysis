@@ -90,10 +90,12 @@ wbdata_historical_quants <- terra::rast(quants_path)
 names(wbdata_historical_quants) <- quants
 
 above_quants_0.1 <- terra::compare(wbdata_future_smoothed, subset(wbdata_historical_quants, 1), ">")
-## above_quants_0.15 <- terra::compare(wbdata_future_smoothed, subset(wbdata_historical_quants, 2), ">", filename = paste0(out_path, "Days_above_fire_risk_0.1_BNU-ESM_rcp45.nc"))
-## above_quants_0.2 <- terra::compare(wbdata_future_smoothed, subset(wbdata_historical_quants, 3), ">", filename = paste0(out_path, "Days_above_fire_risk_0.1_BNU-ESM_rcp45.nc")) 
+above_quants_0.15 <- terra::compare(wbdata_future_smoothed, subset(wbdata_historical_quants, 2), ">")
+above_quants_0.2 <- terra::compare(wbdata_future_smoothed, subset(wbdata_historical_quants, 3), ">")
 
 s_0.1 <- terra::tapp(above_quants_0.1, index = "years", fun = "sum", filename = paste0(out_path, "Annual_sum_days_above_fire_risk_threshold_0.1_", model, "_", scenario, ".nc"))
+s_0.15 <- terra::tapp(above_quants_0.15, index = "years", fun = "sum", filename = paste0(out_path, "Annual_sum_days_above_fire_risk_threshold_0.15_", model, "_", scenario, ".nc"))
+s_0.2 <- terra::tapp(above_quants_0.2, index = "years", fun = "sum", filename = paste0(out_path, "Annual_sum_days_above_fire_risk_threshold_0.2_", model, "_", scenario, ".nc"))
 
 end.time <- Sys.time()
 time.taken <- round(end.time - start.time,2)
