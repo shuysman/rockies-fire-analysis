@@ -61,7 +61,7 @@ ecdf_regression <- function(x) {
 
 start.time <- Sys.time()
 
-future_files <- paste0(future_path, "Deficit_rolling_sum_", rolling_window, "_", model, "_", scenario, "_.*.nc")
+future_files <- Sys.glob(paste0(future_path, "Deficit_rolling_sum_", rolling_window, "_", model, "_", scenario, "_*.nc"))
 
 wbdata_future_smoothed <- terra::rast(future_files)
 
