@@ -25,7 +25,7 @@ scenario <- args[2]
 print(model)
 print(scenario)
 
-cores <- 12
+##cores <- 12
 rolling_window <- 7
 ##threshold <- 0.1
 fire_season_start <- 93
