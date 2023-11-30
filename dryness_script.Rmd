@@ -81,9 +81,7 @@ knitr::opts_chunk$set(
 # Master dataframe
 Read in file containing meta data for fires of interest.
 ```{r metadata, include = T}
-setwd(data_dir)
-
-master <- read_csv(master_csv) %>%
+master <- read_csv(file.path(data_dir, master_csv)) %>%
     filter(Incid_Type == "Wildfire") %>%
 ##    filter(year(Ig_Date) <= 2014) %>%
     rename("maj_veg_cl" = LF20_EVT_5,
