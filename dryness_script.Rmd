@@ -116,7 +116,7 @@ ecoregion <- ecoregions %>% filter(US_L3NAME == region_name)
 bbox_ecoregion <- st_bbox(ecoregion)
 bbox <- c(left = bbox_ecoregion$xmin[[1]], bottom = bbox_ecoregion$ymin[[1]], right = bbox_ecoregion$xmax[[1]], top = bbox_ecoregion$ymax[[1]])
 
-basemap <- get_stamenmap(bbox = bbox, zoom = 7, maptype = "terrain")
+basemap <- get_stadiamap(bbox = bbox, zoom = 7, maptype = "stamen_terrain")
 
 ggmap(basemap) +
     geom_sf(data = ecoregion, inherit.aes = FALSE, alpha = 0.15, fill = "red") +
