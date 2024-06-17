@@ -21,9 +21,6 @@ library(pROC)
 plot_theme <- theme_bw() +
     theme(text = element_text(size=16))
 
-cores <- parallel::detectCores() - 4
-cluster <- new_cluster(cores)
-
 window <- 7
 vars <- c("RD", "VPD", "T", "SOIL", "AWSSM", "RAIN", "AET", "D", "GDD")
 
@@ -162,6 +159,16 @@ master %>% select(Ig_Date, Acres, maj_veg_cl) %>%
 
 # Compute Percentiles
 ```{r analysis, include = T}
+cores <- parallel::detectCores() - 4
+cluster <- new_cluster(cores)
+
+my_percent_rank <- function(x) {
+  x[x == 0] <- NA
+  ranks <- percent_rank(x)
+  ranks[is.na(ranks)] <- 0
+  return(ranks)
+}
+
 cluster_copy(cluster, "master")
 cluster_copy(cluster, "window")
 cluster_copy(cluster, "vars")
@@ -169,6 +176,7 @@ cluster_copy(cluster, "forest_start")
 cluster_copy(cluster, "nonforest_start")
 cluster_copy(cluster, "forest_end")
 cluster_copy(cluster, "nonforest_end")
+cluster_copy(cluster, "my_percent_rank")
 cluster_library(cluster, 'tidyverse')
 cluster_library(cluster, 'slider')
 cluster_library(cluster, 'zoo')
@@ -176,7 +184,7 @@ cluster_library(cluster, 'zoo')
 
 files <- paste0(out_dir, master$filename)
 cluster_assign_partition(cluster, files = files)
-cluster_send(cluster, wbdata <- vroom::vroom(files, id = "PATH"))
+cluster_send(cluster, wbdata <- vroom::vroom(files, id = "PATH", altrep_opts = FALSE))
 wbdata <- party_df(cluster, "wbdata")
 master <- party_df(cluster, "master")
 
@@ -214,17 +222,12 @@ time_elapsed_parallel <- proc.time() - start # End clock
 ##     mutate(across(vars,
 ##                   percent_rank))
 
-my_percent_rank <- function(x) {
-    x_no_zeroes <- subset(x, x != 0)
-    return(percent_rank(x_no_zeroes))
-}
-
 wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
     filter(maj_veg_cl == "forest") %>%
     filter(Date <= Ig_Date) %>%
     collect() %>%
     drop_na(vars) %>%
-    mutate(D = case_when(D == 0 ~ NA, TRUE ~ D)) %>%
+    ##mutate(D = case_when(D == 0 ~ NA, TRUE ~ D)) %>%
     mutate(across(vars,
                   percent_rank))
 
@@ -278,12 +281,28 @@ wbdata_smoothed_c %>%
 ```
 
 ```{r}
+wbdata_percentiles_forest %>%
+    filter(fire == 1) %>%
+    pivot_longer(vars) %>%
+    ggplot(mapping = aes(x = Ig_Date, y = value, color = maj_veg_cl)) +
+    geom_smooth(method = "lm") +
+    geom_point() +
+    facet_wrap(~name, scales = "free") +
+  ggtitle(paste(region_name, "forest water balance percentile on ignition date"))
 
+wbdata_percentiles_forest %>%
+  filter(Event_ID == "UT3778610952720020601", year(Date) == 2000) %>%
+  pivot_longer(vars) %>%
+  filter(name == "D") %>%
+  ggplot(mapping = aes(x = Date, y = value, color = maj_veg_cl)) +
+  geom_line() +
+  facet_wrap(~name, scales = "free") +
+  ggtitle(paste(region_name, "forest water balance percentile on ignition date"))
 ```
 
 # Different Rolling Windows
 
-```{r rolling-windows, fig.width = 5, fig.height = 5, message = F, eval = T}
+```{r rolling-windows, fig.width = 5, fig.height = 5, message = F, eval = F}
 ### TODO
 ### Refactor this so its not copy pasted from above
 
@@ -449,7 +468,7 @@ knitr::kable(nonforest_roc_table_full)
 
 ```
 
-```{r auc-windows-plots, fig.height = 8, fig.width = 8, eval = T}
+```{r auc-windows-plots, fig.height = 8, fig.width = 8, eval = F}
 forest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
     ggplot() +
     geom_line(mapping = aes(x = window, y = value, color = var), lwd=1) +
@@ -468,7 +487,7 @@ nonforest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
 
 # Different Fire Seasons
 
-```{r fire-seasons, fig.width = 5, fig.height = 5, message = F, eval = T}
+```{r fire-seasons-quants, fig.width = 5, fig.height = 5, message = F, eval = F}
 ### TODO
 ### Refactor this so its not copy pasted from above
 
@@ -480,10 +499,10 @@ nonforest_roc_table_full <- tribble(~quant, ~var, ~auc, ~auc20, ~auc10)
 for (q in fire_season_quants) {    
     cluster_copy(cluster, "q")
 
-    forest<-subset(master, maj_veg_cl=="forest")
+    forest<-subset(master_c, maj_veg_cl=="forest")
     forest_q<-quantile(forest$doy,c(1 - q, q))#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min max
 
-    nonforest<-subset(master, maj_veg_cl=="non-forest")
+    nonforest<-subset(master_c, maj_veg_cl=="non-forest")
     nonforest_q<-quantile(nonforest$doy,c(1 - q, q))#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min
 
     ##start and end dates of fire season by vegetation type derived from day of year in min_max table
@@ -652,7 +671,7 @@ knitr::kable(forest_roc_table_full)
 knitr::kable(nonforest_roc_table_full)
 ```
 
-```{r auc-quants-plots, fig.height = 8, fig.width = 8, eval = T}
+```{r auc-quants-plots, fig.height = 8, fig.width = 8, eval = F}
 forest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
     ggplot() +
     geom_line(mapping = aes(x = quant, y = value, color = var), lwd=1) +
@@ -945,7 +964,7 @@ lines(density(nonignitions_forest$VPD), col="blue")
 ```
 
 Determine contribution of various parameters to burned area
-```{r burned-area-contrib, echo = F, message = F}
+```{r burned-area-contrib, echo = F, message = F, eval = F}
 library(hier.part)
 
 y<-as.vector(ignitions_nonforest[,"Acres"])
