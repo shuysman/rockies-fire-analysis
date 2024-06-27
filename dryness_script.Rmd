@@ -25,7 +25,7 @@ window <- 7
 vars <- c("RD", "VPD", "T", "SOIL", "AWSSM", "RAIN", "AET", "D", "GDD")
 
 ### Set region to use for analysis.  Settings for regions stored in 'settings' variable
-region_name <- "Southern Rockies"
+region_name <- "Middle Rockies"
 
 settings <- tribble(
     ~region, ~params,
@@ -163,10 +163,15 @@ cores <- parallel::detectCores() - 4
 cluster <- new_cluster(cores)
 
 my_percent_rank <- function(x) {
-  x[x == 0] <- NA
-  ranks <- percent_rank(x)
-  ranks[is.na(ranks)] <- 0
-  return(ranks)
+  x2 <- round(x, 1)
+  x2[x2 == 0] <- NA
+  x2 <- unique(x2) %>% as.numeric()
+  ranks <- data.frame(x = x2, pct = percent_rank(x2))
+  ## ranks[is.na(ranks)] <- 0
+  inds <- match(round(x, 1), ranks$x)
+  x3 <- ranks$pct[inds]
+  x3 <- replace_na(x3, 0)
+  return(x3)
 }
 
 cluster_copy(cluster, "master")
@@ -180,7 +185,6 @@ cluster_copy(cluster, "my_percent_rank")
 cluster_library(cluster, 'tidyverse')
 cluster_library(cluster, 'slider')
 cluster_library(cluster, 'zoo')
-
 
 files <- paste0(out_dir, master$filename)
 cluster_assign_partition(cluster, files = files)
@@ -229,7 +233,7 @@ wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_ve
     drop_na(vars) %>%
     ##mutate(D = case_when(D == 0 ~ NA, TRUE ~ D)) %>%
     mutate(across(vars,
-                  percent_rank))
+                  my_percent_rank))
 
 
 wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
@@ -241,7 +245,7 @@ wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj
     collect() %>%
     drop_na(vars) %>% ### Drop NAs from periods not included in rolling calcs
     mutate(across(vars,
-                  percent_rank)) 
+                  my_percent_rank)) 
 
 ignitions_forest <- wbdata_percentiles_forest %>% filter(fire == 1)
 nonignitions_forest <- wbdata_percentiles_forest %>% filter(fire == 0)
@@ -280,7 +284,7 @@ wbdata_smoothed_c %>%
     ggtitle(paste(region_name, "water balance on ignition date"))
 ```
 
-```{r}
+```{r eval = F}
 wbdata_percentiles_forest %>%
     filter(fire == 1) %>%
     pivot_longer(vars) %>%
