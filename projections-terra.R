@@ -44,7 +44,7 @@ hist_path <- paste0(home_path, "/data/nps_gridded_wb/gye/historical/rolling_sum/
 quants_path <- paste0(home_path, "/data/nps_gridded_wb/gye/historical/rolling_sum/Deficit_historical_quants_0.35_0.425_0.485_.nc")
 ## quants_path <- "/home/steve/OneDrive/northern-rockies-dryness/out/Deficit_historical_quants_0.35_0.425_0.485_.nc"
 ## out_path <- "/media/smithers/shuysman/data/out/fire/"
-out_path <- paste0(home_path, "/out/fire")
+out_path <- paste0(home_path, "/out/fire/")
 ## nc_data_path <- "/home/steve/Downloads/thredds/"
 
 ## models <- c('NorESM1-M', 'MRI-CGCM3','MIROC-ESM-CHEM', 'MIROC5','IPSL-CM5A-LR','inmcm4','HadGEM2-CC365','CSIRO-Mk3-6-0','CNRM-CM5','CanESM2', 'BNU-ESM','CCSM4', 'GFDL-ESM2G')
