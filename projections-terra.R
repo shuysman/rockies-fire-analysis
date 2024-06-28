@@ -5,7 +5,7 @@ library(parallel)
 library(lubridate)
 library(zoo)
 library(terra)
-library(tidyterra)
+##library(tidyterra)
 
 ## Precalculate historical and future rolling sum files with rolling_sums_future.R and rolling_sums_historical.R scripts first
 ## Set future_path, and hist_path to the dirs containing these files.
