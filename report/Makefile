@@ -1,0 +1,38 @@
+# Makefile
+#
+# Builds pdf and docx output
+
+SOURCE_DOC = report.tex
+
+EXPORTED_DOCS=\
+ $(SOURCE_DOC:.tex=.pdf) \
+ $(SOURCE_DOC:.tex=.docx)
+
+RM=/bin/rm
+
+PANDOC=/usr/bin/pandoc
+
+PANDOC_OPTIONS=--bibliography=/home/steve/OneDrive/org/library.bib --citeproc --standalone
+
+PANDOC_DOCX_OPTIONS=
+
+PDFLATEX=/usr/bin/pdflatex
+BIBER=/usr/bin/biber
+
+%.docx : %.tex
+	$(PANDOC) $(PANDOC_OPTIONS) $(PANDOC_DOCX_OPTIONS) -o $@ $<
+
+%.pdf : %.tex
+	$(PDFLATEX) $<
+	$(BIBER) report
+	$(PDFLATEX) $<
+	$(PDFLATEX) $<
+
+# Targets and dependencies
+
+.PHONY: all clean
+
+all : $(EXPORTED_DOCS)
+
+clean:
+	- $(RM) $(EXPORTED_DOCS)
