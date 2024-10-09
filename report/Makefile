@@ -6,6 +6,7 @@ SOURCE_DOC = report.tex
 
 EXPORTED_DOCS=\
  $(SOURCE_DOC:.tex=.pdf) \
+ $(SOURCE_DOC:.tex=.html) \
  $(SOURCE_DOC:.tex=.docx)
 
 RM=/bin/rm
@@ -21,6 +22,9 @@ BIBER=/usr/bin/biber
 
 %.docx : %.tex
 	$(PANDOC) $(PANDOC_OPTIONS) $(PANDOC_DOCX_OPTIONS) -o $@ $<
+
+%.html : %.tex
+	$(PANDOC) $(PANDOC_OPTIONS) -o $@ $<
 
 %.pdf : %.tex
 	$(PDFLATEX) $<
