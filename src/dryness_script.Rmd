@@ -726,17 +726,17 @@ lines(density(nonignitions_forest$VPD), col="blue")
 ```
 
 Determine contribution of various parameters to burned area
-```{r burned-area-contrib, echo = F, message = F}
-library(hier.part)
+<!-- ```{r burned-area-contrib, echo = F, message = F} -->
+<!-- library(hier.part) -->
 
-y<-as.vector(ignitions_nonforest[,"Acres"])
-xcann<-subset(ignitions_nonforest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD"))
-hier.part(y,xcann,barplot=TRUE)
+<!-- y<-as.vector(ignitions_nonforest[,"Acres"]) -->
+<!-- xcann<-subset(ignitions_nonforest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD")) -->
+<!-- hier.part(y,xcann,barplot=TRUE) -->
 
-y<-as.vector(ignitions_forest[,"Acres"])
-xcann<-subset(ignitions_forest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD"))
-hier.part(y,xcann,barplot=TRUE)
-```
+<!-- y<-as.vector(ignitions_forest[,"Acres"]) -->
+<!-- xcann<-subset(ignitions_forest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD")) -->
+<!-- hier.part(y,xcann,barplot=TRUE) -->
+<!-- ``` -->
 
 Plots of wb percentile vs. area burned show weak relationships
 ```{r wb-vs-area, fig.width = 8, fig.height = 8, eval = F, include = F}

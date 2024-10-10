@@ -1,14 +1,14 @@
 ## This script develops projections using climate futures downloaded from the NPS gridded water balance data set thredds server.  It is based on raster, and cuases my machine to run out of disk space on long runs.  I rewrote it using terra, which performs faster and does not use any disk space.  This script is kept as an example of how to accomplish this with the raster library.
 
-library(ncdf4)
-library(raster)
-library(sf)
-library(tidyverse)
+#library(ncdf4)
+#library(raster)
+#library(sf)
+#library(tidyverse)
 ##library(zoo) ## rollapply()
-library(ggmap)
-library(rgdal)
-library(leaflet)
-library(leaflet.extras)
+#library(ggmap)
+#library(rgdal)
+#library(leaflet)
+#library(leaflet.extras)
 
 rasterOptions(chunksize = 1e+10, maxmemory = 4e+10)
               

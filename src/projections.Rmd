@@ -23,7 +23,7 @@ library(sf)
 library(tidyverse)
 library(zoo) ## rollapply()
 library(ggmap)
-library(rgdal)
+##library(rgdal)
 library(leaflet)
 library(leaflet.extras)
 
