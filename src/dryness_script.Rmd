@@ -110,7 +110,7 @@ coords <- data.frame(
 )
 spdf <- SpatialPointsDataFrame(coords = coords, data = master)
 
-ecoregions <- st_transform(read_sf("/home/steve/OneDrive/nothern-rockies-dryness/data/us_eco_l3/us_eco_l3.shp"), crs = 4326)
+ecoregions <- st_transform(read_sf("/home/steve/OneDrive/northern-rockies-dryness/data/us_eco_l3/us_eco_l3.shp"), crs = 4326)
 ecoregion <- ecoregions %>% filter(US_L3NAME == region_name)
 
 bbox_ecoregion <- st_bbox(ecoregion)
