@@ -267,7 +267,7 @@ wbdata_smoothed_c %>%
 
 # Different Rolling Windows
 
-```{r rolling-windows, fig.width = 5, fig.height = 5, message = F, eval = T}
+```{r rolling-windows, fig.width = 5, fig.height = 5, message = F, eval = F}
 ### TODO
 ### Refactor this so its not copy pasted from above
 
@@ -433,7 +433,7 @@ knitr::kable(nonforest_roc_table_full)
 
 ```
 
-```{r auc-windows-plots, fig.height = 8, fig.width = 8, eval = T}
+```{r auc-windows-plots, fig.height = 8, fig.width = 8, eval = F}
 forest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
     ggplot() +
     geom_line(mapping = aes(x = window, y = value, color = var), lwd=1) +
