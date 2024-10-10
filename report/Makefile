@@ -31,6 +31,7 @@ BIBER=/usr/bin/biber
 	$(BIBER) report
 	$(PDFLATEX) $<
 	$(PDFLATEX) $<
+	latexmk -c
 
 # Targets and dependencies
 
@@ -40,3 +41,4 @@ all : $(EXPORTED_DOCS)
 
 clean:
 	- $(RM) $(EXPORTED_DOCS)
+	- latexmk -c
