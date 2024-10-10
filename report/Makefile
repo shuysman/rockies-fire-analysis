@@ -5,15 +5,15 @@
 SOURCE_DOC = report.tex
 
 EXPORTED_DOCS=\
- $(SOURCE_DOC:.tex=.pdf) \
  $(SOURCE_DOC:.tex=.html) \
- $(SOURCE_DOC:.tex=.docx)
+ $(SOURCE_DOC:.tex=.docx) \
+ $(SOURCE_DOC:.tex=.pdf)
 
 RM=/bin/rm
 
 PANDOC=/usr/bin/pandoc
 
-PANDOC_OPTIONS=--bibliography=/home/steve/OneDrive/org/library.bib --citeproc --metadata link-citations=true --standalone
+PANDOC_OPTIONS= --filter pandoc-crossref --bibliography=/home/steve/OneDrive/org/library.bib --citeproc --metadata link-citations=true --standalone
 
 PANDOC_DOCX_OPTIONS=
 
