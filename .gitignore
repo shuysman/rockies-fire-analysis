@@ -1,5 +1,4 @@
 out/*
-data/*
 *~
 *.png
 *.pdf
@@ -15,7 +14,6 @@ data/*
 *.qgz
 *.qmd
 *.zip
-*.csv
 *.cpg
 *.dbf
 *.prj
@@ -23,3 +21,4 @@ data/*
 *.shx
 *#
 *.xlsm
+.Rhistory

@@ -524,7 +524,7 @@ for (n in 1:nrow(igsite)){
     f3<-as.Date(index(doy_ann_sub), format = "%m/%d/%Y");head(f3);length(f3)
     #compute percentile rank of each observation in the sequence of years before and including (last line) year of fire
     rankthis_shrub<-data.frame(date=index(doy_ann_sub), coredata(doy_ann_sub));head(rankthis_shrub)
-     ranks<-apply(rankthis_shrub[5:13],2,percent_rank)
+    ranks<-apply(rankthis_shrub[5:13],2,percent_rank)
     ranksxts<-xts(coredata(ranks),order.by=f3);head(ranksxts)#build xts data structure 
     #igstatus<-as.data.frame(wbxts[ig_date]);igstatus
     igrank<-as.data.frame(ranksxts[ig_date]);igrank
