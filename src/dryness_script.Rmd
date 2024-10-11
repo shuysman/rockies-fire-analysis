@@ -253,6 +253,8 @@ ignitions_long <- rbind(ignitions_forest_long, ignitions_non_forest_long)
 ## wbdata_smoothed_c <- wbdata_smoothed %>% collect()
 ## master_c <- master %>% collect()
 
+
+##  percentiles %>% filter(maj_veg_cl == "forest") %>% filter(Date == "2002-06-01") %>% filter(Event_ID == "CO3701010497920020601") %>% select(D, window)
 ```
 
 # Data Visualizations
@@ -346,11 +348,12 @@ We use the AUC (area under the curve) of the ROC (receiver operating characteris
 ```{r forest_roc, fig.width = 6, fig.height = 6, include = TRUE, eval = T, message = F, echo = F}
 
 make_roc <- function(options) {
-  window = options[1]
+  roll_window = as.numeric(options[1])
   cover_class = options[2]
   
   wbdata <- percentiles %>%
-    filter(window == window, maj_veg_cl == cover_class)
+    filter(window == roll_window) %>%
+    filter(maj_veg_cl == cover_class)
   
   rd_roc<-roc(wbdata$fire,wbdata$RD, plot=FALSE)
   vpd_roc<-roc(wbdata$fire,wbdata$VPD, plot=FALSE)
@@ -362,13 +365,13 @@ make_roc <- function(options) {
   aet_roc<-roc(wbdata$fire,wbdata$AET, plot=FALSE)
   d_roc<-roc(wbdata$fire,wbdata$D, plot=FALSE)
 
-  png(filename = paste0("../img/", region_name, "-", cover_class, "-", window, "-days.png"), width = 800, height = 800)
+  png(filename = paste0("img/", region_name, "-", cover_class, "-", roll_window, "-days.png"), width = 800, height = 800)
   par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
   ##                "s" - creates a square plotting region
   ##                "m" - (the default) creates a maximal plotting region
   par(bg="white")
   
-  plot.roc(col="pink",rd_roc, lwd=4, print.auc=FALSE, legacy.axes = TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", main = paste(region_name, "Forest ", window, " days"))
+  plot.roc(col="pink",rd_roc, lwd=4, print.auc=FALSE, legacy.axes = TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", main = paste(region_name, cover_class, roll_window, "days"))
   plot.roc(add=TRUE,col="dark blue",vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
   plot.roc(add=TRUE,col="green",t_roc, main="temp", lwd=4, print.auc=FALSE)
   plot.roc(add=TRUE,col="red",soil_roc, main="soil", lwd=4, print.auc=FALSE)
@@ -400,12 +403,14 @@ make_roc <- function(options) {
   }
 
   auc0lb <- function(var) {
+    ### Lower-bound estimate for full AUC
     var <- tolower(var)
     roc <- paste0(var, "_roc")
     return(as.numeric(ci(get(roc)))[1])
   }
 
   auc0ub <- function(var) {
+    ### Upper-bound estimate for full AUC
     var <- tolower(var)
     roc <- paste0(var, "_roc")
     return(as.numeric(ci(get(roc)))[3])
@@ -423,14 +428,13 @@ make_roc <- function(options) {
     return(as.numeric(auc(get(roc),  partial.auc=c(1, .8))))
   }
 
-  roc_table <- tribble(~window, ~maj_veg_cl, ~var, ~auc, ~auc20, ~auc10)
+  roc_table <- tribble(~window, ~maj_veg_cl, ~var, ~auc, ~aucub, ~auclb, ~auc20, ~auc10)
   for (var in vars) {
-    roc_table <- roc_table %>% add_row(window = window, maj_veg_cl = cover_class, var = var, auc = auc0(var), auclb = auc0lb(var), aubub = aub0ub(var), auc20 = auc20(var), auc10 = auc10(var))
+    roc_table <- roc_table %>% add_row(window = roll_window, maj_veg_cl = cover_class, var = var, auc = auc0(var), auclb = auc0lb(var), aucub = auc0ub(var), auc20 = auc20(var), auc10 = auc10(var))
   }
 
   return(roc_table)
 }
-
 
 roc_options <- expand.grid(
   window = windows,
@@ -438,7 +442,6 @@ roc_options <- expand.grid(
 ) %>%
   t() %>%
   data.frame()
-
 
 roc_table <- mclapply(roc_options, make_roc, mc.cores = 10) %>%
   bind_rows()
