@@ -158,7 +158,7 @@ master %>% select(Ig_Date, Acres, maj_veg_cl) %>%
 ```
 
 # Compute Percentiles
-```{r analysis, include = T}
+```{r percentiles, include = T}
 ## cores <- parallel::detectCores() - 4
 ## cluster <- new_cluster(cores)
 
@@ -345,7 +345,7 @@ ggcorr(wbdata_percentiles_forest, method = c("everything", "pearson"))
 We use the AUC (area under the curve) of the ROC (receiver operating characteristic) as a measure of goodness-of-fit to evaluate which predictors to use in the fire danger model.  
 
 
-```{r forest_roc, fig.width = 6, fig.height = 6, include = TRUE, eval = T, message = F, echo = F}
+```{r roc_analysis, fig.width = 6, fig.height = 6, include = TRUE, eval = T, message = F, echo = F}
 
 make_roc <- function(options) {
   roll_window = as.numeric(options[1])
