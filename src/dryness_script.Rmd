@@ -15,6 +15,7 @@ library(multidplyr)
 library(zoo)
 ##library(slider)
 library(pROC)
+library(glue)
 
 plot_theme <- theme_bw() +
     theme(text = element_text(size=16))
@@ -27,12 +28,12 @@ region_name <- "Middle Rockies"
 
 settings <- tribble(
     ~region, ~params,
-    "Southern Rockies", list(data_dir =  "/home/steve/OneDrive/northern-rockies-dryness",
+    "Southern Rockies", list(data_dir =  "/home/steve/OneDrive/northern-rockies-dryness/data",
                              out_dir = "/media/steve/storage/waterbalance/fire/out/ap23/",
 ##                                 "/home/steve/apr23_fire_points",
                            master_csv =  "SR_fire_points_extracted.csv"
                            ),
-    "Middle Rockies", list(data_dir =  "/home/steve/OneDrive/northern-rockies-dryness",
+    "Middle Rockies", list(data_dir =  "/home/steve/OneDrive/northern-rockies-dryness/data",
                            out_dir =  "/media/steve/storage/waterbalance/fire/out/",
                            master_csv =  "MR_fire_points_extracted.csv"
                            ),
