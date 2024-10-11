@@ -16,15 +16,16 @@ library(zoo)
 ##library(slider)
 library(pROC)
 library(glue)
+library(parallel)
 
 plot_theme <- theme_bw() +
     theme(text = element_text(size=16))
 
-window <- 7
+#window <- 7
 vars <- c("RD", "VPD", "T", "SOIL", "AWSSM", "RAIN", "AET", "D", "GDD")
 
 ### Set region to use for analysis.  Settings for regions stored in 'settings' variable
-region_name <- "Middle Rockies"
+region_name <- "Southern Rockies"
 
 settings <- tribble(
     ~region, ~params,
@@ -87,7 +88,7 @@ master <- read_csv(file.path(data_dir, master_csv)) %>%
     ##    of pixels classification from Landfire 30m pixels in burned
     ##    areas, this data was extracted in QGIS.
     mutate(maj_veg_cl = case_match(maj_veg_cl,
-                                   c("Herb", "Shrub", "Sparse") ~ "non-forest",
+                                   c("Herb", "Shrub", "Sparse") ~ "non_forest",
                                    "Tree" ~ "forest",
                                    c("Agriculture", "Water") ~ "other"),
            filename = paste0(Event_ID, ".csv"),
@@ -132,15 +133,15 @@ knitr::kable(summary_tbl)
 forest<-subset(master, maj_veg_cl=="forest")
 forest_q<-quantile(forest$doy,c(0,1))#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min max
 
-nonforest<-subset(master, maj_veg_cl=="non-forest")
-nonforest_q<-quantile(nonforest$doy,c(0,1))#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min
+non_forest<-subset(master, maj_veg_cl=="non_forest")
+non_forest_q<-quantile(non_forest$doy,c(0,1))#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min
 
 #start and end dates of fire season by vegetation type derived from day of year in min_max table
-doy_min_max<-as.data.frame(rbind(forest_q, nonforest_q))
+doy_min_max<-as.data.frame(rbind(forest_q, non_forest_q))
 forest_start<-doy_min_max[1,1]
-nonforest_start<-doy_min_max[2,1]
+non_forest_start<-doy_min_max[2,1]
 forest_end<-doy_min_max[1,2]
-nonforest_end<-doy_min_max[2,2]
+non_forest_end<-doy_min_max[2,2]
 
 knitr::kable(doy_min_max)
 
@@ -158,8 +159,8 @@ master %>% select(Ig_Date, Acres, maj_veg_cl) %>%
 
 # Compute Percentiles
 ```{r analysis, include = T}
-cores <- parallel::detectCores() - 4
-cluster <- new_cluster(cores)
+## cores <- parallel::detectCores() - 4
+## cluster <- new_cluster(cores)
 
 my_percent_rank <- function(x) {
   x2 <- round(x, 1)
@@ -173,23 +174,29 @@ my_percent_rank <- function(x) {
   return(x3)
 }
 
-cluster_copy(cluster, "master")
-cluster_copy(cluster, "window")
-cluster_copy(cluster, "vars")
-cluster_copy(cluster, "forest_start")
-cluster_copy(cluster, "nonforest_start")
-cluster_copy(cluster, "forest_end")
-cluster_copy(cluster, "nonforest_end")
-cluster_copy(cluster, "my_percent_rank")
-cluster_library(cluster, 'tidyverse')
-cluster_library(cluster, 'slider')
-cluster_library(cluster, 'zoo')
+## cluster_copy(cluster, "master")
+## cluster_copy(cluster, "window")
+## cluster_copy(cluster, "vars")
+## cluster_copy(cluster, "forest_start")
+## cluster_copy(cluster, "non_forest_start")
+## cluster_copy(cluster, "forest_end")
+## cluster_copy(cluster, "non_forest_end")
+## cluster_copy(cluster, "my_percent_rank")
+## cluster_library(cluster, 'tidyverse')
+## cluster_library(cluster, 'slider')
+## cluster_library(cluster, 'zoo')
+
+## files <- paste0(out_dir, master$filename)
+## cluster_assign_partition(cluster, files = files)
+## cluster_send(cluster, wbdata <- vroom::vroom(files, id = "PATH", altrep_opts = FALSE))
+## wbdata <- party_df(cluster, "wbdata")
+## master <- party_df(cluster, "master")
+
 
 files <- paste0(out_dir, master$filename)
-cluster_assign_partition(cluster, files = files)
-cluster_send(cluster, wbdata <- vroom::vroom(files, id = "PATH", altrep_opts = FALSE))
-wbdata <- party_df(cluster, "wbdata")
-master <- party_df(cluster, "master")
+wbdata <- vroom::vroom(files, id = "PATH", altrep_opts = FALSE)
+
+windows <- c(1, 3, 5, 7, 9, 11, 14, 17, 21, 31)
 
 wbdata <- wbdata %>%
     mutate(Event_ID = str_extract(PATH, '(?<=/)[^/]*(?=\\.[^./]+$)')) %>% ## Extract file name without extension, use as Event_ID
@@ -202,60 +209,49 @@ wbdata <- wbdata %>%
               by = "Event_ID") %>%
     mutate(fire = if_else(Date == Ig_Date, 1, 0)) 
 
-start <- proc.time() # Start clock
-wbdata_smoothed <- select(wbdata, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-    ## mutate_at(vars[1:5],
-    ##           ~ slide_dbl(.x, mean, .before = window, .after = 0, .complete = TRUE)) %>%
-    ## mutate_at(vars[6:9],
-    ##           ~ slide_dbl(.x, sum, .before = window, .after = 0, .complete = TRUE)) %>%
-    mutate_at(vars[1:5],
-              ~ rollapply(.x, window, mean, by = 1, partial = FALSE, fill = NA, align = "right")) %>%
-    mutate_at(vars[6:9],
-              ~ rollapply(.x, window, sum, by = 1, partial = FALSE, fill = NA, align = "right")) 
-time_elapsed_parallel <- proc.time() - start # End clock
-
-## wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-##     filter(maj_veg_cl == "forest") %>%
-##     filter(Date <= Ig_Date,
-##            yday(Date) >= forest_start, ## Filter to fire season
-##            yday(Date) <= forest_end) %>%  ## To get this to match results from original dryness_script2, we only filter beginning of season.  Original script also didn't use doy, instead it filtered by absolute date, so would only chop off first pre-fireseason from first year in record.
-## ##    slice(window + 1):n()) %>%
-##     collect() %>%
-##     drop_na(vars) %>% ### Drop NAs from periods not included in rolling calcs
-##     mutate(across(vars,
-##                   percent_rank))
-
-wbdata_percentiles_forest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-    filter(maj_veg_cl == "forest") %>%
-    filter(Date <= Ig_Date) %>%
-    collect() %>%
-    drop_na(vars) %>%
-    ##mutate(D = case_when(D == 0 ~ NA, TRUE ~ D)) %>%
-    mutate(across(vars,
-                  my_percent_rank))
+percentiles <- mclapply(windows,
+                        FUN = \(window) {
+                          wbdata_smoothed <- select(wbdata, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
+                            ## mutate_at(vars[1:5],
+                            ##           ~ slide_dbl(.x, mean, .before = window, .after = 0, .complete = TRUE)) %>%
+                            ## mutate_at(vars[6:9],
+                            ##           ~ slide_dbl(.x, sum, .before = window, .after = 0, .complete = TRUE)) %>%
+                            mutate_at(vars[1:5],
+                                      ~ rollapply(.x, window, mean, by = 1, partial = FALSE, fill = NA, align = "right")) %>%
+                            mutate_at(vars[6:9],
+                                      ~ rollapply(.x, window, sum, by = 1, partial = FALSE, fill = NA, align = "right")) 
 
 
-wbdata_percentiles_nonforest <- select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-    filter(maj_veg_cl == "non-forest") %>%
-    filter(Date <= Ig_Date,
-           yday(Date) >= nonforest_start,  ## Filter to fire season
-           yday(Date) <= nonforest_end) %>%
-    ##        slice((window + 1):n()) %>%
-    collect() %>%
-    drop_na(vars) %>% ### Drop NAs from periods not included in rolling calcs
-    mutate(across(vars,
-                  my_percent_rank)) 
+                          wbdata_percentiles <- 
+                            select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
+                            filter(Date <= Ig_Date,
+                                   yday(Date) >=
+                                     case_when(maj_veg_cl == "forest" ~ forest_start,
+                                               maj_veg_cl == "non_forest" ~ non_forest_start),  ## Filter to fire season
+                                   yday(Date) <=
+                                     case_when(maj_veg_cl == "forest" ~ forest_end,
+                                               maj_veg_cl == "non_forest" ~ non_forest_end)) %>%
+                            drop_na(vars) %>%
+                            mutate(across(vars,
+                                          my_percent_rank)) %>%
+                            mutate(window = window)
+                        },
+                        mc.cores = 10) %>%
+  bind_rows()
 
+
+wbdata_percentiles_forest <- filter(percentiles, maj_veg_cl == "forest")
+wbdata_percentiles_non_forest <- filter(percentiles, maj_veg_cl == "non_forest")
 ignitions_forest <- wbdata_percentiles_forest %>% filter(fire == 1)
 nonignitions_forest <- wbdata_percentiles_forest %>% filter(fire == 0)
 ignitions_forest_long <- ignitions_forest %>% pivot_longer(cols = vars)
-ignitions_nonforest <- wbdata_percentiles_nonforest %>% filter(fire == 1)
-nonignitions_nonforest <- wbdata_percentiles_nonforest %>% filter(fire == 0)
-ignitions_nonforest_long <- ignitions_nonforest %>% pivot_longer(cols = vars)
-ignitions_long <- rbind(ignitions_forest_long, ignitions_nonforest_long)
+ignitions_non_forest <- wbdata_percentiles_non_forest %>% filter(fire == 1)
+nonignitions_non_forest <- wbdata_percentiles_non_forest %>% filter(fire == 0)
+ignitions_non_forest_long <- ignitions_non_forest %>% pivot_longer(cols = vars)
+ignitions_long <- rbind(ignitions_forest_long, ignitions_non_forest_long)
 
-wbdata_smoothed_c <- wbdata_smoothed %>% collect()
-master_c <- master %>% collect()
+## wbdata_smoothed_c <- wbdata_smoothed %>% collect()
+## master_c <- master %>% collect()
 
 ```
 
@@ -263,7 +259,7 @@ master_c <- master %>% collect()
 
 ```{r dates-included}
 wbdata_percentiles_forest %>%
-    filter(Event_ID %in% master_c$Event_ID[1:25]) %>%
+    filter(Event_ID %in% master$Event_ID[1:25]) %>%
     ggplot() +
     geom_point(aes(x = Date, y = Event_ID)) +
     geom_point(aes(x = Ig_Date, y = Event_ID), col = "red") +
@@ -272,7 +268,7 @@ wbdata_percentiles_forest %>%
 
 ```
 
-```{r date-distributions}
+```{r date-distributions, eval = F, include = F}
 wbdata_smoothed_c %>%
     filter(fire == 1) %>%
     pivot_longer(vars) %>%
@@ -303,393 +299,6 @@ wbdata_percentiles_forest %>%
   ggtitle(paste(region_name, "forest water balance percentile on ignition date"))
 ```
 
-# Different Rolling Windows
-
-```{r rolling-windows, fig.width = 5, fig.height = 5, message = F, eval = F}
-### TODO
-### Refactor this so its not copy pasted from above
-
-windows <- c(1, 3, 5, 7, 9, 11, 14, 17, 21, 31)
-
-forest_roc_table_full <- tribble(~window, ~var, ~auc, ~auc20, ~auc10)
-nonforest_roc_table_full <- tribble(~window, ~var, ~auc, ~auc20, ~auc10)
-
-for (k in windows) {
-    cluster_copy(cluster, "k")
-    start <- proc.time() # Start clock
-    wbdata_smoothed2 <- select(wbdata, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-        ## mutate_at(vars[1:5],
-        ##           ~ slide_dbl(.x, mean, .before = window, .after = 0, .complete = TRUE)) %>%
-        ## mutate_at(vars[6:9],
-        ##           ~ slide_dbl(.x, sum, .before = window, .after = 0, .complete = TRUE)) %>%
-        mutate_at(vars[1:5],
-                  ~ rollapply(.x, k, mean, by = 1, partial = FALSE, fill = NA, align = "right")) %>%
-        mutate_at(vars[6:9],
-                  ~ rollapply(.x, k, sum, by = 1, partial = FALSE, fill = NA, align = "right")) 
-    time_elapsed_parallel <- proc.time() - start # End clock
-
-    wbdata_percentiles_forest2 <- select(wbdata_smoothed2, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-        filter(maj_veg_cl == "forest") %>%
-        filter(Date <= Ig_Date,
-               yday(Date) >= forest_start, ## Filter to fire season
-               yday(Date) <= forest_end) %>%  ## To get this to match results from original dryness_script2, we only filter beginning of season.  Original script also didn't use doy, instead it filtered by absolute date, so would only chop off first pre-fireseason from first year in record.
-        ##    slice(window + 1):n()) %>%
-        collect() %>%
-        drop_na(vars) %>% ### Drop NAs from periods not included in rolling calcs
-        mutate(across(vars,
-                      percent_rank))
-
-    wbdata_percentiles_nonforest2 <- select(wbdata_smoothed2, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-        filter(maj_veg_cl == "non-forest") %>%
-        filter(Date <= Ig_Date,
-               yday(Date) >= nonforest_start,  ## Filter to fire season
-               yday(Date) <= nonforest_end) %>%
-        ##        slice((window + 1):n()) %>%
-        collect() %>%
-        drop_na(vars) %>% ### Drop NAs from periods not included in rolling calcs
-        mutate(across(vars,
-                      percent_rank))
-
-    forest_rd_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_vpd_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_t_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_soil_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_gdd_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_awssm_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_rain_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_aet_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_d_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-
-    png(filename = paste0("img/", region_name, "-forest-", k, "-days.png"), width = 800, height = 800)
-    par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
-    ##                "s" - creates a square plotting region
-    ##                "m" - (the default) creates a maximal plotting region
-    par(bg="white")
-    plot.roc(col="pink",forest_rd_roc, lwd=4, print.auc=FALSE, main = paste(region_name, "Forest ", k, " days"))
-    plot.roc(add=TRUE,col="dark blue",forest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="green",forest_t_roc, main="temp", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="red",forest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="brown",forest_gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="magenta",forest_awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="purple",forest_rain_roc, main="rain", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="dark green",forest_aet_roc, main="aet", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="orange",forest_d_roc, main="d", lwd=4, print.auc=FALSE)
-                                        # Add a legend
-    legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
-                                        #paste("SVP ",round(auc(forest_svp_roc),1)),
-                            paste("VPD ",round(auc(forest_vpd_roc),1)),
-                            paste("TEMP ",round(auc(forest_t_roc),1)),
-                            paste("SOIL ",round(auc(forest_soil_roc),1)),
-                            paste("GDD ",round(auc(forest_gdd_roc),1)),
-                            paste("SWD",round(auc(forest_awssm_roc),1)),
-                            paste("RAIN ",round(auc(forest_rain_roc),1)),
-                            paste("AET ",round(auc(forest_aet_roc),1)),
-                            paste("CWD ",round(auc(forest_d_roc),1))),
-           bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
-           lty=1, lwd=4, text.font=2)#cex=0.9,
-    text(1,75,"AUC")
-    dev.off()
-    
-    auc0f <- function(var) {
-        roc <- paste0("forest_", var, "_roc")
-        return(as.numeric(auc(get(roc))))
-    }
-    auc10f <- function(var) {
-        roc <- paste0("forest_", var, "_roc")
-        return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
-    }
-    auc20f <- function(var) {
-        roc <- paste0("forest_", var, "_roc")
-        return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
-    }
-
-    for (var in vars) {
-        forest_roc_table_full <- forest_roc_table_full %>% add_row(window = k, var = var, auc = auc0f(tolower(var)), auc20 = auc20f(tolower(var)), auc10 = auc10f(tolower(var)))
-    }
-
-
-    nonforest_rd_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_vpd_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_t_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_soil_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_gdd_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_awssm_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_rain_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_aet_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_d_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-
-    png(filename = paste0("img/", region_name, "-nonforest-", k, "-days.png"), width = 800, height = 800)
-    par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
-    ##                "s" - creates a square plotting region
-    ##                "m" - (the default) creates a maximal plotting region
-    par(bg="white")
-    plot.roc(col="pink",nonforest_rd_roc, lwd=4, print.auc=FALSE, main = paste(region_name, "Nonforest ", k, " days"))
-    plot.roc(add=TRUE,col="dark blue",nonforest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="green",nonforest_t_roc, main="temp", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="red",nonforest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="brown",nonforest_gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="magenta",nonforest_awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="purple",nonforest_rain_roc, main="rain", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="dark green",nonforest_aet_roc, main="aet", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="orange",nonforest_d_roc, main="d", lwd=4, print.auc=FALSE)
-                                        # Add a legend
-    legend(35, 75, legend=c(paste("RD ",round(auc(nonforest_rd_roc),1)),
-                                        #paste("SVP ",round(auc(nonforest_svp_roc),1)),
-                            paste("VPD ",round(auc(nonforest_vpd_roc),1)),
-                            paste("TEMP ",round(auc(nonforest_t_roc),1)),
-                            paste("SOIL ",round(auc(nonforest_soil_roc),1)),
-                            paste("GDD ",round(auc(nonforest_gdd_roc),1)),
-                            paste("SWD",round(auc(nonforest_awssm_roc),1)),
-                            paste("RAIN ",round(auc(nonforest_rain_roc),1)),
-                            paste("AET ",round(auc(nonforest_aet_roc),1)),
-                            paste("CWD ",round(auc(nonforest_d_roc),1))),
-           bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
-           lty=1, lwd=4, text.font=2)#cex=0.9,
-    text(1,75,"AUC")
-    dev.off()
-    
-    auc0nf <- function(var) {
-        roc <- paste0("nonforest_", var, "_roc")
-        return(as.numeric(auc(get(roc))))
-    }
-    auc10nf <- function(var) {
-        roc <- paste0("nonforest_", var, "_roc")
-        return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
-    }
-    auc20nf <- function(var) {
-        roc <- paste0("nonforest_", var, "_roc")
-        return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
-    }
-
-    for (var in vars) {
-        nonforest_roc_table_full <- nonforest_roc_table_full %>% add_row(window = k, var = var, auc = auc0nf(tolower(var)), auc20 = auc20nf(tolower(var)), auc10 = auc10nf(tolower(var)))
-    }
-}
-
-knitr::kable(forest_roc_table_full)
-knitr::kable(nonforest_roc_table_full)
-
-```
-
-```{r auc-windows-plots, fig.height = 8, fig.width = 8, eval = F}
-forest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
-    ggplot() +
-    geom_line(mapping = aes(x = window, y = value, color = var), lwd=1) +
-    facet_wrap(~name, ncol = 1, scales = "free") +
-    ggtitle(paste(region_name, "Forest AUC and pAUC")) +
-    plot_theme + theme(legend.position="bottom")
-
-nonforest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
-    ggplot() +
-    geom_line(mapping = aes(x = window, y = value, color = var), lwd=1) +
-    facet_wrap(~name, ncol = 1, scales = "free") +
-    ggtitle(paste(region_name, "Nonforest AUC and pAUC")) +
-    plot_theme + theme(legend.position="bottom")
-```
-
-
-# Different Fire Seasons
-
-```{r fire-seasons-quants, fig.width = 5, fig.height = 5, message = F, eval = F}
-### TODO
-### Refactor this so its not copy pasted from above
-
-fire_season_quants <- c(1, .95, .9, .85, .8, .75)
-
-forest_roc_table_full <- tribble(~quant, ~var, ~auc, ~auc20, ~auc10)
-nonforest_roc_table_full <- tribble(~quant, ~var, ~auc, ~auc20, ~auc10)
-
-for (q in fire_season_quants) {    
-    cluster_copy(cluster, "q")
-
-    forest<-subset(master_c, maj_veg_cl=="forest")
-    forest_q<-quantile(forest$doy,c(1 - q, q))#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min max
-
-    nonforest<-subset(master_c, maj_veg_cl=="non-forest")
-    nonforest_q<-quantile(nonforest$doy,c(1 - q, q))#90% of data fall within this range 0.05-0.95# 0.27 to 0.75 or 0,1 to determine min
-
-    ##start and end dates of fire season by vegetation type derived from day of year in min_max table
-    doy_min_max<-as.data.frame(rbind(forest_q, nonforest_q))
-    forest_start<-doy_min_max[1,1]
-    nonforest_start<-doy_min_max[2,1]
-    forest_end<-doy_min_max[1,2]
-    nonforest_end<-doy_min_max[2,2]
-
-    cluster_copy(cluster, "forest_start")
-    cluster_copy(cluster, "forest_end")
-    cluster_copy(cluster, "nonforest_start")
-    cluster_copy(cluster, "nonforest_end")
-    
-    start <- proc.time() # Start clock
-    wbdata_smoothed2 <- select(wbdata, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-        ## mutate_at(vars[1:5],
-        ##           ~ slide_dbl(.x, mean, .before = window, .after = 0, .complete = TRUE)) %>%
-        ## mutate_at(vars[6:9],
-        ##           ~ slide_dbl(.x, sum, .before = window, .after = 0, .complete = TRUE)) %>%
-        mutate_at(vars[1:5],
-                  ~ rollapply(.x, window, mean, by = 1, partial = FALSE, fill = NA, align = "right")) %>%
-        mutate_at(vars[6:9],
-                  ~ rollapply(.x, window, sum, by = 1, partial = FALSE, fill = NA, align = "right")) 
-    time_elapsed_parallel <- proc.time() - start # End clock
-
-    wbdata_percentiles_forest2 <- select(wbdata_smoothed2, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-        filter(maj_veg_cl == "forest") %>%
-        filter(Date <= Ig_Date,
-               yday(Date) >= forest_start, ## Filter to fire season
-               yday(Date) <= forest_end) %>%  ## To get this to match results from original dryness_script2, we only filter beginning of season.  Original script also didn't use doy, instead it filtered by absolute date, so would only chop off first pre-fireseason from first year in record.
-        ##    slice(window + 1):n()) %>%
-        collect() %>%
-        drop_na(vars) %>% ### Drop NAs from periods not included in rolling calcs
-        mutate(across(vars,
-                      percent_rank))
-
-    wbdata_percentiles_nonforest2 <- select(wbdata_smoothed2, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-        filter(maj_veg_cl == "non-forest") %>%
-        filter(Date <= Ig_Date,
-               yday(Date) >= nonforest_start,  ## Filter to fire season
-               yday(Date) <= nonforest_end) %>%
-        ##        slice((window + 1):n()) %>%
-        collect() %>%
-        drop_na(vars) %>% ### Drop NAs from periods not included in rolling calcs
-        mutate(across(vars,
-                      percent_rank))
-
-    forest_rd_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_vpd_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_t_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_soil_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_gdd_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_awssm_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_rain_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_aet_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    forest_d_roc<-roc(wbdata_percentiles_forest2$fire,wbdata_percentiles_forest2$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
- 
-   png(filename = paste0("img/", region_name, "-forest-", q, "-quant-", window, "-days.png"), width = 800, height = 800)
-    par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
-    ##                "s" - creates a square plotting region
-    ##                "m" - (the default) creates a maximal plotting region
-    par(bg="white")
-    plot.roc(col="pink",forest_rd_roc, lwd=4, print.auc=FALSE, main = paste(region_name, "Forest ", window, " days"))
-    plot.roc(add=TRUE,col="dark blue",forest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="green",forest_t_roc, main="temp", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="red",forest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="brown",forest_gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="magenta",forest_awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="purple",forest_rain_roc, main="rain", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="dark green",forest_aet_roc, main="aet", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="orange",forest_d_roc, main="d", lwd=4, print.auc=FALSE)
-                                        # Add a legend
-    legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
-                                        #paste("SVP ",round(auc(forest_svp_roc),1)),
-                            paste("VPD ",round(auc(forest_vpd_roc),1)),
-                            paste("TEMP ",round(auc(forest_t_roc),1)),
-                            paste("SOIL ",round(auc(forest_soil_roc),1)),
-                            paste("GDD ",round(auc(forest_gdd_roc),1)),
-                            paste("SWD",round(auc(forest_awssm_roc),1)),
-                            paste("RAIN ",round(auc(forest_rain_roc),1)),
-                            paste("AET ",round(auc(forest_aet_roc),1)),
-                            paste("CWD ",round(auc(forest_d_roc),1))),
-           bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
-           lty=1, lwd=4, text.font=2)#cex=0.9,
-    text(1,75,"AUC")
-    dev.off()
-    
-    auc0f <- function(var) {
-        roc <- paste0("forest_", var, "_roc")
-        return(as.numeric(auc(get(roc))))
-    }
-    auc10f <- function(var) {
-        roc <- paste0("forest_", var, "_roc")
-        return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
-    }
-    auc20f <- function(var) {
-        roc <- paste0("forest_", var, "_roc")
-        return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
-    }
-
-    for (var in vars) {
-        forest_roc_table_full <- forest_roc_table_full %>% add_row(quant = q, var = var, auc = auc0f(tolower(var)), auc20 = auc20f(tolower(var)), auc10 = auc10f(tolower(var)))
-    }
-
-
-    nonforest_rd_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_vpd_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_t_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_soil_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_gdd_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_awssm_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_rain_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_aet_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-    nonforest_d_roc<-roc(wbdata_percentiles_nonforest2$fire,wbdata_percentiles_nonforest2$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-
-    png(filename = paste0("img/", region_name, "-nonforest-", q, "-quant-", window, "-days.png"), width = 800, height = 800)
-    par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
-    ##                "s" - creates a square plotting region
-    ##                "m" - (the default) creates a maximal plotting region
-    par(bg="white")
-    plot.roc(col="pink",nonforest_rd_roc, lwd=4, print.auc=FALSE, main = paste(region_name, "Nonforest ", window, " days"))
-    plot.roc(add=TRUE,col="dark blue",nonforest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="green",nonforest_t_roc, main="temp", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="red",nonforest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="brown",nonforest_gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="magenta",nonforest_awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="purple",nonforest_rain_roc, main="rain", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="dark green",nonforest_aet_roc, main="aet", lwd=4, print.auc=FALSE)
-    plot.roc(add=TRUE,col="orange",nonforest_d_roc, main="d", lwd=4, print.auc=FALSE)
-                                        # Add a legend
-    legend(35, 75, legend=c(paste("RD ",round(auc(nonforest_rd_roc),1)),
-                                        #paste("SVP ",round(auc(nonforest_svp_roc),1)),
-                            paste("VPD ",round(auc(nonforest_vpd_roc),1)),
-                            paste("TEMP ",round(auc(nonforest_t_roc),1)),
-                            paste("SOIL ",round(auc(nonforest_soil_roc),1)),
-                            paste("GDD ",round(auc(nonforest_gdd_roc),1)),
-                            paste("SWD",round(auc(nonforest_awssm_roc),1)),
-                            paste("RAIN ",round(auc(nonforest_rain_roc),1)),
-                            paste("AET ",round(auc(nonforest_aet_roc),1)),
-                            paste("CWD ",round(auc(nonforest_d_roc),1))),
-           bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
-           lty=1, lwd=4, text.font=2)#cex=0.9,
-    text(1,75,"AUC")
-    dev.off()
-    
-    auc0nf <- function(var) {
-        roc <- paste0("nonforest_", var, "_roc")
-        return(as.numeric(auc(get(roc))))
-    }
-    auc10nf <- function(var) {
-        roc <- paste0("nonforest_", var, "_roc")
-        return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
-    }
-    auc20nf <- function(var) {
-        roc <- paste0("nonforest_", var, "_roc")
-        return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
-    }
-
-    for (var in vars) {
-        nonforest_roc_table_full <- nonforest_roc_table_full %>% add_row(quant = q, var = var, auc = auc0nf(tolower(var)), auc20 = auc20nf(tolower(var)), auc10 = auc10nf(tolower(var)))
-    }
-}
-
-knitr::kable(forest_roc_table_full)
-knitr::kable(nonforest_roc_table_full)
-```
-
-```{r auc-quants-plots, fig.height = 8, fig.width = 8, eval = F}
-forest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
-    ggplot() +
-    geom_line(mapping = aes(x = quant, y = value, color = var), lwd=1) +
-    facet_wrap(~name, ncol = 1, scales = "free") +
-    ggtitle(paste(region_name, "Forest AUC and pAUC")) +
-    plot_theme + theme(legend.position="bottom")
-
-nonforest_roc_table_full %>% pivot_longer(c(auc, auc20, auc10)) %>%
-    ggplot() +
-    geom_line(mapping = aes(x = quant, y = value, color = var), lwd=1) +
-    facet_wrap(~name, ncol = 1, scales = "free") +
-    ggtitle(paste(region_name, "Nonforest AUC and pAUC")) +
-    plot_theme + theme(legend.position="bottom")
-```
-
 # Corrplot
 
 ```{r}
@@ -707,7 +316,7 @@ ggcorr(wbdata_percentiles_forest, method = c("everything", "pearson"))
 <!--     facet_wrap(~fire) -->
 
 
-<!-- wbdata_percentiles_nonforest %>% -->
+<!-- wbdata_percentiles_non_forest %>% -->
 <!--     pivot_longer(vars) %>% -->
 <!--     ggplot() + -->
 <!--     geom_boxplot(mapping = aes(x = name, y = value)) + -->
@@ -735,226 +344,106 @@ We use the AUC (area under the curve) of the ROC (receiver operating characteris
 
 
 ```{r forest_roc, fig.width = 6, fig.height = 6, include = TRUE, eval = T, message = F, echo = F}
-## library(lme4)
 
-## #divide dataset into training and test set
-## set.seed(1)
-## sample <- sample(c(TRUE, FALSE), nrow(wbdata_percentiles_forest), replace=TRUE, prob=c(0.7,0.3))
-## train <- wbdata_percentiles_forest[sample, ]
-## test <- wbdata_percentiles_forest[!sample, ]
+make_roc <- function(options) {
+  window = options[1]
+  cover_class = options[2]
+  
+  wbdata <- percentiles %>%
+    filter(window == window, maj_veg_cl == cover_class)
+  
+  rd_roc<-roc(wbdata$fire,wbdata$RD, plot=FALSE)
+  vpd_roc<-roc(wbdata$fire,wbdata$VPD, plot=FALSE)
+  t_roc<-roc(wbdata$fire,wbdata$T, plot=FALSE)
+  soil_roc<-roc(wbdata$fire,wbdata$SOIL, plot=FALSE)
+  gdd_roc<-roc(wbdata$fire,wbdata$GDD, plot=FALSE)
+  awssm_roc<-roc(wbdata$fire,wbdata$AWSSM, plot=FALSE)
+  rain_roc<-roc(wbdata$fire,wbdata$RAIN, plot=FALSE)
+  aet_roc<-roc(wbdata$fire,wbdata$AET, plot=FALSE)
+  d_roc<-roc(wbdata$fire,wbdata$D, plot=FALSE)
 
-## df.list <- train %>%
-##     group_by(name) %>%
-##     group_split(name)
+  png(filename = paste0("../img/", region_name, "-", cover_class, "-", window, "-days.png"), width = 800, height = 800)
+  par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
+  ##                "s" - creates a square plotting region
+  ##                "m" - (the default) creates a maximal plotting region
+  par(bg="white")
+  
+  plot.roc(col="pink",rd_roc, lwd=4, print.auc=FALSE, legacy.axes = TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", main = paste(region_name, "Forest ", window, " days"))
+  plot.roc(add=TRUE,col="dark blue",vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
+  plot.roc(add=TRUE,col="green",t_roc, main="temp", lwd=4, print.auc=FALSE)
+  plot.roc(add=TRUE,col="red",soil_roc, main="soil", lwd=4, print.auc=FALSE)
+  plot.roc(add=TRUE,col="brown",gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
+  plot.roc(add=TRUE,col="magenta",awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
+  plot.roc(add=TRUE,col="purple",rain_roc, main="rain", lwd=4, print.auc=FALSE)
+  plot.roc(add=TRUE,col="dark green",aet_roc, main="aet", lwd=4, print.auc=FALSE)
+  plot.roc(add=TRUE,col="orange",d_roc, main="d", lwd=4, print.auc=FALSE)
+  # Add a legend
+  legend(.35, .75, legend=c(paste("RD ",round(auc(rd_roc),2)),
+                          #paste("SVP ",round(auc(svp_roc),2)),
+                          paste("VPD ",round(auc(vpd_roc),2)),
+                          paste("TEMP ",round(auc(t_roc),2)),
+                          paste("SOIL ",round(auc(soil_roc),2)),
+                          paste("GDD ",round(auc(gdd_roc),2)),
+                          paste("SWD",round(auc(awssm_roc),2)),
+                          paste("RAIN ",round(auc(rain_roc),2)),
+                          paste("AET ",round(auc(aet_roc),2)),
+                          paste("CWD ",round(auc(d_roc),2))),
+         bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
+         lty=1, lwd=4, text.font=2)#cex=0.9,
+  text(.01, .75,"AUC")
+  dev.off()
 
-## map_function <- function(x){
-##   pROC::roc(
-##     data = x,
-##     response = fire,
-##     predictor = value
-##   )
-## }
-
-## roc.list <- map(df.list, map_function)
-
-## ggroc(roc.list, alpha = 0.5) +
-##   theme_bw()
-
-
-## forest_RD_mm <- glmer(fire ~ RD + (1 | Event_ID), family = "binomial", data = train)
-## forest_VPD_mm <- glmer(fire ~ VPD + (1 | Event_ID), family = "binomial", data = train)
-## forest_T_mm <- glmer(fire ~ T + (1 | Event_ID), family = "binomial", data = train)
-## forest_SOIL_mm <- glmer(fire ~ SOIL + (1 | Event_ID), family = "binomial", data = train)
-## forest_GDD_mm <- glmer(fire ~ GDD + (1 | Event_ID), family = "binomial", data = train)
-## forest_AWSSM_mm <- glmer(fire ~ AWSSM + (1 | Event_ID), family = "binomial", data = train)
-## forest_RAIN_mm <- glmer(fire ~ RAIN + (1 | Event_ID), family = "binomial", data = train)
-## forest_D_mm <- glmer(fire ~ D + (1 | Event_ID), family = "binomial", data = train)
-## forest_AET_mm <- glmer(fire ~ AET + (1 | Event_ID), family = "binomial", data = train)
-
-
-## predicted_forest_RD_mm <- predict(forest_RD_mm, test, type = "response")
-## predicted_forest_VPD_mm <- predict(forest_VPD_mm, test, type = "response")
-## predicted_forest_T_mm <- predict(forest_T_mm, test, type = "response")
-## predicted_forest_SOIL_mm <- predict(forest_SOIL_mm, test, type = "response")
-## predicted_forest_GDD_mm <- predict(forest_GDD_mm, test, type = "response")
-## predicted_forest_AWSSM_mm <- predict(forest_AWSSM_mm, test, type = "response")
-## predicted_forest_RAIN_mm <- predict(forest_RAIN_mm, test, type = "response")
-## predicted_forest_D_mm <- predict(forest_D_mm, test, type = "response")
-## predicted_forest_AET_mm <- predict(forest_AET_mm, test, type = "response")
-
-## roc.list <- list( RD = roc(test$fire, predicted_forest_RD_mm),
-##                  VPD = roc(test$fire, predicted_forest_VPD_mm),
-##                  T = roc(test$fire, predicted_forest_T_mm),
-##                  SOIL = roc(test$fire, predicted_forest_SOIL_mm),
-##                  GDD = roc(test$fire, predicted_forest_GDD_mm),
-##                  AWSSM = roc(test$fire, predicted_forest_AWSSM_mm),
-##                  RAIN = roc(test$fire, predicted_forest_RAIN_mm),
-##                  D = roc(test$fire, predicted_forest_D_mm),
-##                  AET = roc(test$fire, predicted_forest_AET_mm) )
-
-## ggroc(roc.list, lwd = 2)
-
-## forest_RD <- glm(fire ~ RD, family = "binomial", data = train)
-
-## anova(forest_RD_mm, forest_RD, test = "Chisq")
-
-
-## forest_VPD <- glm(fire ~ VPD, family = "binomial", data = train)
-## forest_T <- glm(fire ~ T, family = "binomial", data = train)
-## forest_SOIL <- glm(fire ~ SOIL, family = "binomial", data = train)
-## forest_GDD <- glm(fire ~ GDD, family = "binomial", data = train)
-## forest_AWSSM <- glm(fire ~ AWSSM, family = "binomial", data = train)
-## forest_RAIN <- glm(fire ~ RAIN, family = "binomial", data = train)
-## forest_AET <- glm(fire ~ AET, family = "binomial", data = train)
-## forest_D <- glm(fire ~ D, family = "binomial", data = train)
-
-## predicted_forest_RD <- predict(forest_RD, test, type = "response")
-## predicted_forest_VPD <- predict(forest_VPD, test, type = "response")
-## predicted_forest_T <- predict(forest_T, test, type = "response")
-## predicted_forest_SOIL <- predict(forest_SOIL, test, type = "response")
-## predicted_forest_GDD <- predict(forest_GDD, test, type = "response")
-## predicted_forest_AWSSM <- predict(forest_AWSSM, test, type = "response")
-## predicted_forest_RAIN <- predict(forest_RAIN, test, type = "response")
-## predicted_forest_AET <- predict(forest_AET, test, type = "response")
-## predicted_forest_D <- predict(forest_D, test, type = "response")
-
-## rocobj_forest_RD <- roc(test$fire, predicted_forest_RD)
-## rocobj_forest_VPD <- roc(test$fire, predicted_forest_VPD)
-## rocobj_forest_T <- roc(test$fire, predicted_forest_T)
-## rocobj_forest_SOIL <- roc(test$fire, predicted_forest_SOIL)
-## rocobj_forest_GDD <- roc(test$fire, predicted_forest_GDD)
-## rocobj_forest_AWSSM <- roc(test$fire, predicted_forest_AWSSM)
-## rocobj_forest_RAIN <- roc(test$fire, predicted_forest_RAIN)
-## rocobj_forest_AET <- roc(test$fire, predicted_forest_AET)
-## rocobj_forest_D <- roc(test$fire, predicted_forest_D)
-
-## ggroc(rocobj_forest_RD, colour = 'steelblue', size = 2)
-
-## +
-##     ggroc(rocobj_forest_VPD, colour = 'darkred', size = 2) +
-##     ggroc(rocobj_forest_T, colour = 'orange', size = 2) +
-##     ggroc(rocobj_forest_SOIL, colour = 'green', size = 2) +
-##     ggroc(rocobj_forest_GDD, colour = 'purple', size = 2) +
-##     ggroc(rocobj_forest_AWSSM, colour = 'aquamarine2', size = 2) +
-##     ggroc(rocobj_forest_RAIN, colour = 'darkorchid2', size = 2) +
-##     ggroc(rocobj_forest_AET, colour = 'deeppink', size = 2) +
-##     ggroc(rocobj_forest_D, colour = 'firebrick1', size = 2) 
-
-forest_rd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-forest_vpd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-forest_t_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-forest_soil_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-forest_gdd_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-forest_awssm_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-forest_rain_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-forest_aet_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-forest_d_roc<-roc(wbdata_percentiles_forest$fire,wbdata_percentiles_forest$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-
-par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
-##                "s" - creates a square plotting region
-##                "m" - (the default) creates a maximal plotting region
-par(bg="white")
-plot.roc(col="pink",forest_rd_roc, lwd=4, print.auc=FALSE, legacy.axes = TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", main = paste(region_name, "Forest ", window, " days"))
-plot.roc(add=TRUE,col="dark blue",forest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="green",forest_t_roc, main="temp", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="red",forest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="brown",forest_gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="magenta",forest_awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="purple",forest_rain_roc, main="rain", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="dark green",forest_aet_roc, main="aet", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="orange",forest_d_roc, main="d", lwd=4, print.auc=FALSE)
-                                        # Add a legend
-legend(35, 75, legend=c(paste("RD ",round(auc(forest_rd_roc),1)),
-                                        #paste("SVP ",round(auc(forest_svp_roc),1)),
-                        paste("VPD ",round(auc(forest_vpd_roc),1)),
-                        paste("TEMP ",round(auc(forest_t_roc),1)),
-                        paste("SOIL ",round(auc(forest_soil_roc),1)),
-                        paste("GDD ",round(auc(forest_gdd_roc),1)),
-                        paste("SWD",round(auc(forest_awssm_roc),1)),
-                        paste("RAIN ",round(auc(forest_rain_roc),1)),
-                        paste("AET ",round(auc(forest_aet_roc),1)),
-                        paste("CWD ",round(auc(forest_d_roc),1))),
-       bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
-       lty=1, lwd=4, text.font=2)#cex=0.9,
-text(1,75,"AUC")
-
-auc0f <- function(var) {
-    roc <- paste0("forest_", var, "_roc")
+  auc0 <- function(var) {
+    var <- tolower(var)
+    roc <- paste0(var, "_roc")
     return(as.numeric(auc(get(roc))))
-}
-auc10f <- function(var) {
-        roc <- paste0("forest_", var, "_roc")
-        return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
-}
-auc20f <- function(var) {
-        roc <- paste0("forest_", var, "_roc")
-        return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
-}
-forest_roc_table <- tribble(~window, ~var, ~auc, ~auc20, ~auc10)
-for (var in vars) {
-    forest_roc_table <- forest_roc_table %>% add_row(window = window, var = var, auc = auc0f(tolower(var)), auc20 = auc20f(tolower(var)), auc10 = auc10f(tolower(var)))
+  }
+
+  auc0lb <- function(var) {
+    var <- tolower(var)
+    roc <- paste0(var, "_roc")
+    return(as.numeric(ci(get(roc)))[1])
+  }
+
+  auc0ub <- function(var) {
+    var <- tolower(var)
+    roc <- paste0(var, "_roc")
+    return(as.numeric(ci(get(roc)))[3])
+  }
+  
+  auc10 <- function(var) {
+    var <- tolower(var)
+    roc <- paste0(var, "_roc")
+    return(as.numeric(auc(get(roc),  partial.auc=c(1, .9))))
+  }
+
+  auc20 <- function(var) {
+    var <- tolower(var)
+    roc <- paste0(var, "_roc")
+    return(as.numeric(auc(get(roc),  partial.auc=c(1, .8))))
+  }
+
+  roc_table <- tribble(~window, ~maj_veg_cl, ~var, ~auc, ~auc20, ~auc10)
+  for (var in vars) {
+    roc_table <- roc_table %>% add_row(window = window, maj_veg_cl = cover_class, var = var, auc = auc0(var), auclb = auc0lb(var), aubub = aub0ub(var), auc20 = auc20(var), auc10 = auc10(var))
+  }
+
+  return(roc_table)
 }
 
-knitr::kable(forest_roc_table)
-```
 
-```{r nonforest_roc, fig.width = 6, fig.height = 6, eval = T, message = F, echo = F}
-nonforest_rd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_vpd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$VPD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_t_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$T, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_soil_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$SOIL, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_gdd_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$GDD, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_awssm_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$AWSSM, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_rain_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$RAIN, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_aet_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$AET, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
-nonforest_d_roc<-roc(wbdata_percentiles_nonforest$fire,wbdata_percentiles_nonforest$D, plot=FALSE, legacy.axes=TRUE, percent=TRUE, col="#377eb8", lwd=4, print.auc=TRUE)
+roc_options <- expand.grid(
+  window = windows,
+  class = c("forest", "non_forest")
+) %>%
+  t() %>%
+  data.frame()
 
-par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
-##                "s" - creates a square plotting region
-##                "m" - (the default) creates a maximal plotting region
-par(bg="white")
-plot.roc(col="pink",nonforest_rd_roc, lwd=4, print.auc=FALSE, xlab="False Positive Percentage", ylab="True Postive Percentage", main = paste(region_name, "Nonforest ", window, " days"))
-plot.roc(add=TRUE,col="dark blue",nonforest_vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="green",nonforest_t_roc, main="temp", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="red",nonforest_soil_roc, main="soil", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="brown",nonforest_gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="magenta",nonforest_awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="purple",nonforest_rain_roc, main="rain", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="dark green",nonforest_aet_roc, main="aet", lwd=4, print.auc=FALSE)
-plot.roc(add=TRUE,col="orange",nonforest_d_roc, main="d", lwd=4, print.auc=FALSE)
-                                        # Add a legend
-legend(35, 75, legend=c(paste("RD ",round(auc(nonforest_rd_roc),1)),
-                                        #paste("SVP ",round(auc(nonforest_svp_roc),1)),
-                        paste("VPD ",round(auc(nonforest_vpd_roc),1)),
-                        paste("TEMP ",round(auc(nonforest_t_roc),1)),
-                        paste("SOIL ",round(auc(nonforest_soil_roc),1)),
-                        paste("GDD ",round(auc(nonforest_gdd_roc),1)),
-                        paste("SWD",round(auc(nonforest_awssm_roc),1)),
-                        paste("RAIN ",round(auc(nonforest_rain_roc),1)),
-                        paste("AET ",round(auc(nonforest_aet_roc),1)),
-                        paste("CWD ",round(auc(nonforest_d_roc),1))),
-       bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
-       lty=1, lwd=4, text.font=2)#cex=0.9,
-text(1,75,"AUC")
 
-auc0nf <- function(var) {
-    roc <- paste0("nonforest_", var, "_roc")
-    return(as.numeric(auc(get(roc))))
-}
-auc10nf <- function(var) {
-    roc <- paste0("nonforest_", var, "_roc")
-    return(as.numeric(auc(get(roc),  partial.auc=c(100, 90))))
-}
-auc20nf <- function(var) {
-    roc <- paste0("nonforest_", var, "_roc")
-    return(as.numeric(auc(get(roc),  partial.auc=c(100, 80))))
-}
-nonforest_roc_table <- tribble(~window, ~var, ~auc, ~auc20, ~auc10)
-for (var in vars) {
-    nonforest_roc_table <- nonforest_roc_table %>% add_row(window = window, var = var, auc = auc0nf(tolower(var)), auc20 = auc20nf(tolower(var)), auc10 = auc10nf(tolower(var)))
-}
-
-knitr::kable(nonforest_roc_table)
+roc_table <- mclapply(roc_options, make_roc, mc.cores = 10) %>%
+  bind_rows()
+                      
+knitr::kable(roc_table)
 ```
 
 demonstrate histogram of conditions associated with fire or no fire to see how much overlap there is.  This helps interpret the ROC
@@ -966,18 +455,18 @@ plot(density(ignitions_forest$VPD), col="red")
 lines(density(nonignitions_forest$VPD), col="blue")
 ```
 
-Determine contribution of various parameters to burned area
-```{r burned-area-contrib, echo = F, message = F, eval = F}
-library(hier.part)
+<!-- Determine contribution of various parameters to burned area -->
+<!-- ```{r burned-area-contrib, echo = F, message = F, eval = F} -->
+<!-- library(hier.part) -->
 
-y<-as.vector(ignitions_nonforest[,"Acres"])
-xcann<-subset(ignitions_nonforest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD"))
-hier.part(y,xcann,barplot=TRUE)
+<!-- y<-as.vector(ignitions_non_forest[,"Acres"]) -->
+<!-- xcann<-subset(ignitions_non_forest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD")) -->
+<!-- hier.part(y,xcann,barplot=TRUE) -->
 
-y<-as.vector(ignitions_forest[,"Acres"])
-xcann<-subset(ignitions_forest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD"))
-hier.part(y,xcann,barplot=TRUE)
-```
+<!-- y<-as.vector(ignitions_forest[,"Acres"]) -->
+<!-- xcann<-subset(ignitions_forest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD")) -->
+<!-- hier.part(y,xcann,barplot=TRUE) -->
+<!-- ``` -->
 
 Plots of wb percentile vs. area burned show weak relationships
 ```{r wb-vs-area, fig.width = 8, fig.height = 8, eval = F, include = F}
@@ -1068,89 +557,6 @@ regression3_formula <- function(b0, b1, b2, b3) {
 
 ```
 
-## First Order
-
-```{r ecdf-regression1}
-ecdf_regression1 <- function(ecdf_fn) {
-    estimated <- data.frame(
-        dec = seq(from = 0.01, to = 0.99, by = 0.01)
-    )
-
-    estimated$quants <- quantile(ecdf_fn, estimated$dec)
-    estimated$proportions <- ecdf_fn(estimated$quants)
-
-    lm <- lm(log(proportions) ~ quants, data = estimated)
-    estimated$predicted <- exp(predict(lm, data = estimated$quants))
-    
-    ##plot(lm)
-
-    a <- exp(lm$coefficients[[1]])
-    b <- lm$coefficients[[2]]
-
-    return (list(lm = lm,
-                 estimated = estimated,
-                 a = a,
-                 b = b))
-}
-
-```
-
-```{r ecdf-regression1-plot}
-ecdf_regression1_plot <- function(ecdf_fn, cover, var, estimated, a, b) {
-    high_thresh <- .4
-    low_thresh <- .1
-    
-    regression_fn <- function(x) {
-        a <- a
-        b <- b
-        return (a*exp(b*x))
-    }
-
-    plot(ecdf_fn, main = paste(region_name, cover, var))
-    points(y = estimated$proportions, x = estimated$quants, col = "blue")
-    points(y = estimated$predicted, x = estimated$quants, col = "red")
-    curve(regression_fn, add = TRUE, col = "red")
-    x_low <- round(log(low_thresh/a)/b,2)
-    segments(0, low_thresh, x1 = x_low, y1 = low_thresh) ## Low Fire Danger horiz
-    text(x = .3, y = low_thresh + 0.02, label = "Low Fire Danger")
-    segments(x_low, 0, x1 = x_low, y1 = low_thresh) ## Low Fire Danger vert
-    text(x = x_low, y = -.02, label = x_low)
-    x_high <- round(log(high_thresh/a)/b,2)
-    segments(0, high_thresh, x1 = x_high, y1 = high_thresh) ## High Fire Danger horiz
-    text(x = .3, y = high_thresh + 0.02, label = "High Fire Danger")
-    segments(x_high, 0, x1 = x_high, y1 = high_thresh) ## High Fire Danger vert
-    text(x = x_high, y = -.02, label = x_high)
-}
-```
-
-
-```{r ecdf-regression1-loop}
-for (var in selected_vars) {
-    for (cover in c("forest", "nonforest")) {
-        print(paste("First order regression for", region_name, cover, var))
-        
-        ignitions <- get(paste0("ignitions_", cover))
-        ecdf_fn <- ecdf(ignitions[[var]])
-        print(summary(ecdf_fn))
-
-        regression_list <- ecdf_regression1(ecdf_fn)
-        estimated <- regression_list$estimated
-        lm <- regression_list$lm
-        r2 <- summary(lm)$adj.r.squared
-        a <- regression_list$a
-        b <- regression_list$b
-
-        print(summary(lm))
-
-        ecdf_regression1_plot(ecdf_fn, cover, var, estimated, a, b)
-
-        regression_formulas <- regression_formulas %>%
-            add_row(var = var, order = "1", cover = cover, formula = regression1_formula(a, b), r2 = r2)
-    }
-}
-
-```
-
 ## Second Order
 Fits to ECDF curves may be improved by including a quadtratic term in regression
 
@@ -1232,10 +638,10 @@ Estimated function predicting proportion of historic fires burning in forests at
 
 $\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2}\end{align*}$
 
-### CWD Non-forest
+### CWD non_forest
 
-```{r ecdf-regression2-d-nonforest}
-ecdf_fn <- ecdf(ignitions_nonforest$D)
+```{r ecdf-regression2-d-non_forest}
+ecdf_fn <- ecdf(ignitions_non_forest$D)
 summary(ecdf_fn)
 
 estimated <- data.frame(
@@ -1264,17 +670,17 @@ curve(exp(b0 + b1*x + b2*(x^2)), add = TRUE, col = "red")
 ##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
 
 regression_formulas <- regression_formulas %>%
-    add_row(var = "D", order = "2", cover = "nonforest", formula = regression2_formula(b0, b1, b2), r2 = r2)
+    add_row(var = "D", order = "2", cover = "non_forest", formula = regression2_formula(b0, b1, b2), r2 = r2)
 ```
 
-Estimated function predicting proportion of historic fires burning in nonforests at or below given percentile of CWD on day of ignition:
+Estimated function predicting proportion of historic fires burning in non_forests at or below given percentile of CWD on day of ignition:
 
 $\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2}\end{align*}$
 
-### VPD Non-forest
+### VPD non_forest
 
-```{r ecdf-regression2-vpd-nonforest}
-ecdf_fn <- ecdf(ignitions_nonforest$VPD)
+```{r ecdf-regression2-vpd-non_forest}
+ecdf_fn <- ecdf(ignitions_non_forest$VPD)
 summary(ecdf_fn)
 
 estimated <- data.frame(
@@ -1303,266 +709,15 @@ curve(exp(b0 + b1*x + b2*(x^2)), add = TRUE, col = "red")
 ##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
 
 regression_formulas <- regression_formulas %>%
-    add_row(var = "VPD", order = "2", cover = "nonforest", formula = regression2_formula(b0, b1, b2), r2 = r2)
+    add_row(var = "VPD", order = "2", cover = "non_forest", formula = regression2_formula(b0, b1, b2), r2 = r2)
 ```
 
-Estimated function predicting proportion of historic fires burning in nonforests at or below given percentile of VPD on day of ignition:
+Estimated function predicting proportion of historic fires burning in non_forests at or below given percentile of VPD on day of ignition:
 
 $\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2}\end{align*}$
-
-## Third Order
-
-### CWD Forest
-
-```{r ecdf-regression3-d-forest}
-ecdf_fn <- ecdf(ignitions_forest$D)
-summary(ecdf_fn)
-
-estimated <- data.frame(
-    dec = seq(from = 0.01, to = 0.99, by = 0.01)
-)
-
-estimated$quants <- quantile(ecdf_fn, estimated$dec)
-estimated$proportions <- ecdf_fn(estimated$quants)
-
-lm <- lm(log(proportions) ~ poly(quants, 3, raw = TRUE), data = estimated)
-r2 <- summary(lm)$adj.r.squared
-estimated$predicted <- exp(predict(lm, data = estimated$quants))
-
-##plot(lm)
-
-summary(lm)
-
-b0 <- lm$coefficients[[1]]
-b1 <- lm$coefficients[[2]]
-b2 <- lm$coefficients[[3]]
-b3 <- lm$coefficients[[4]]
-
-plot(ecdf_fn)
-points(y = estimated$proportions, x = estimated$quants, col = "blue")
-points(y = estimated$predicted, x = estimated$quants, col = "red")
-curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
-##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
-
-regression_formulas <- regression_formulas %>%
-    add_row(var = "D", order = "3", cover = "forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
-```
-
-Estimated function predicting proportion of historic fires burning in forests at or below given percentile of CWD on day of ignition:
-
-$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
-
-### VPD Forest
-
-```{r ecdf-regression3-vpd-forest}
-ecdf_fn <- ecdf(ignitions_forest$VPD)
-summary(ecdf_fn)
-
-estimated <- data.frame(
-    dec = seq(from = 0.01, to = 0.99, by = 0.01)
-)
-
-estimated$quants <- quantile(ecdf_fn, estimated$dec)
-estimated$proportions <- ecdf_fn(estimated$quants)
-
-lm <- lm(log(proportions) ~ poly(quants, 3, raw = TRUE), data = estimated)
-r2 <- summary(lm)$adj.r.squared
-estimated$predicted <- exp(predict(lm, data = estimated$quants))
-
-##plot(lm)
-
-summary(lm)
-
-b0 <- lm$coefficients[[1]]
-b1 <- lm$coefficients[[2]]
-b2 <- lm$coefficients[[3]]
-b3 <- lm$coefficients[[4]]
-
-plot(ecdf_fn)
-points(y = estimated$proportions, x = estimated$quants, col = "blue")
-points(y = estimated$predicted, x = estimated$quants, col = "red")
-curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
-##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
-
-regression_formulas <- regression_formulas %>%
-    add_row(var = "VPD", order = "3", cover = "forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
-```
-
-Estimated function predicting proportion of historic fires burning in forests at or below given percentile of VPD on day of ignition:
-
-$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
-
-### CWD Non-forest
-
-```{r ecdf-regression3-d-nonforest}
-ecdf_fn <- ecdf(ignitions_nonforest$D)
-summary(ecdf_fn)
-
-estimated <- data.frame(
-    dec = seq(from = 0.01, to = 0.99, by = 0.01)
-)
-
-estimated$quants <- quantile(ecdf_fn, estimated$dec)
-estimated$proportions <- ecdf_fn(estimated$quants)
-
-lm <- lm(log(proportions) ~ poly(quants, 3, raw = TRUE), data = estimated)
-r2 <- summary(lm)$adj.r.squared
-estimated$predicted <- exp(predict(lm, data = estimated$quants))
-
-##plot(lm)
-
-summary(lm)
-
-b0 <- lm$coefficients[[1]]
-b1 <- lm$coefficients[[2]]
-b2 <- lm$coefficients[[3]]
-b3 <- lm$coefficients[[4]]
-
-plot(ecdf_fn, xlab = "Percentile of Deficit", ylab = "Proportion of historical wildfires", main = "eCDF Nonforest Deficit, with ignition danger ratings", xlim = c(0,1))
-points(y = estimated$proportions, x = estimated$quants, col = "blue")
-points(y = estimated$predicted, x = estimated$quants, col = "red")
-curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
-##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
-low_thresh <- .1
-med_thresh <- .4
-high_thresh <- .7
-x_low <- .46
-segments(-5, low_thresh, x1 = x_low, y1 = low_thresh) ## Low Fire Danger horiz
-text(x = .15, y = low_thresh + 0.02, label = "Low Fire Danger")
-segments(x_low, -5, x1 = x_low, y1 = low_thresh) ## Low Fire Danger vert
-text(x = x_low + .025, y = -.02, label = x_low)
-x_med <- .87
-segments(-5, med_thresh, x1 = x_med, y1 = med_thresh) ## High Fire Danger horiz
-text(x = .15, y = med_thresh + 0.02, label = "Medium Fire Danger")
-segments(x_med, -5, x1 = x_med, y1 = med_thresh) ## High Fire Danger vert
-text(x = x_med + .025, y = -.02, label = x_med)
-x_high <- .96
-segments(-5, high_thresh, x1 = x_high, y1 = high_thresh) ## High Fire Danger horiz
-text(x = .15, y = high_thresh + 0.02, label = "High Fire Danger")
-segments(x_med, -5, x1 = x_high, y1 = high_thresh) ## High Fire Danger vert
-text(x = x_high + .025, y = -.02, label = x_high)
-
-
-
-regression_formulas <- regression_formulas %>%
-    add_row(var = "D", order = "3", cover = "nonforest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
-```
-
-Estimated function predicting proportion of historic fires burning in nonforests at or below given percentile of CWD on day of ignition:
-
-$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
-
-### VPD Non-forest
-
-```{r ecdf-regression3-vpd-nonforest}
-ecdf_fn <- ecdf(ignitions_nonforest$VPD)
-summary(ecdf_fn)
-
-estimated <- data.frame(
-    dec = seq(from = 0.01, to = 0.99, by = 0.01)
-)
-
-estimated$quants <- quantile(ecdf_fn, estimated$dec)
-estimated$proportions <- ecdf_fn(estimated$quants)
-
-lm <- lm(log(proportions) ~ poly(quants, 3, raw = TRUE), data = estimated)
-r2 <- summary(lm)$adj.r.squared
-estimated$predicted <- exp(predict(lm, data = estimated$quants))
-
-##plot(lm)
-
-summary(lm)
-
-b0 <- lm$coefficients[[1]]
-b1 <- lm$coefficients[[2]]
-b2 <- lm$coefficients[[3]]
-b3 <- lm$coefficients[[4]]
-
-solve_ecdf <- function(x) {
-    exp(b0 + b1*x + b2*(x^2) + b3*(x^3))
-}
-
-plot(ecdf_fn)
-points(y = estimated$proportions, x = estimated$quants, col = "blue")
-points(y = estimated$predicted, x = estimated$quants, col = "red")
-curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
-##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
-x_low <- round(log(low_thresh/a)/b,2)
-segments(0, low_thresh, x1 = x_low, y1 = low_thresh) ## Low Fire Danger horiz
-text(x = .3, y = low_thresh + 0.02, label = "Low Fire Danger")
-segments(x_low, 0, x1 = x_low, y1 = low_thresh) ## Low Fire Danger vert
-text(x = x_low, y = -.02, label = x_low)
-x_high <- round(log(high_thresh/a)/b,2)
-segments(0, high_thresh, x1 = x_high, y1 = high_thresh) ## High Fire Danger horiz
-text(x = .3, y = high_thresh + 0.02, label = "High Fire Danger")
-segments(x_high, 0, x1 = x_high, y1 = high_thresh) ## High Fire Danger vert
-text(x = x_high, y = -.02, label = x_high)
-
-regression_formulas <- regression_formulas %>%
-    add_row(var = "VPD", order = "3", cover = "nonforest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
-```
-
-Estimated function predicting proportion of historic fires burning in nonforests at or below given percentile of VPD on day of ignition:
-
-$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
-
-### RD Non-forest
-
-```{r ecdf-regression3-rd-nonforest}
-ecdf_fn <- ecdf(ignitions_nonforest$RD)
-summary(ecdf_fn)
-
-estimated <- data.frame(
-    dec = seq(from = 0.01, to = 0.99, by = 0.01)
-)
-
-estimated$quants <- quantile(ecdf_fn, estimated$dec)
-estimated$proportions <- ecdf_fn(estimated$quants)
-
-lm <- lm(log(proportions) ~ poly(quants, 3, raw = TRUE), data = estimated)
-r2 <- summary(lm)$adj.r.squared
-estimated$predicted <- exp(predict(lm, data = estimated$quants))
-
-##plot(lm)
-
-summary(lm)
-
-b0 <- lm$coefficients[[1]]
-b1 <- lm$coefficients[[2]]
-b2 <- lm$coefficients[[3]]
-b3 <- lm$coefficients[[4]]
-
-plot(ecdf_fn)
-points(y = estimated$proportions, x = estimated$quants, col = "blue")
-points(y = estimated$predicted, x = estimated$quants, col = "red")
-curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
-##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
-
-regression_formulas <- regression_formulas %>%
-    add_row(var = "RD", order = "3", cover = "nonforest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
-```
-
-Estimated function predicting proportion of historic fires burning in nonforests at or below given percentile of `r window` day rolling mean of RD on day of ignition:
-
-$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
 
 ## Estimated Regression Formulas
 `r knitr::kable(regression_formulas)`
-
-# Create logistic regression object
-
-```{r log-model}
-fire <- wbdata_percentiles_forest$fire
-D <- wbdata_percentiles_forest$D
-
-lm1 <- glm(fire ~ D, family = "binomial")
-summary(lm1)
-
-save(lm1, file = paste0("out/", str_replace(region_name, " ", "_"), "_lm.rda"))
-
-library(effects)
-plot(allEffects(lm1))
-```
 
 # R Version
 
