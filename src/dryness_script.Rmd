@@ -163,14 +163,37 @@ master %>% select(Ig_Date, Acres, maj_veg_cl) %>%
 ## cluster <- new_cluster(cores)
 
 my_percent_rank <- function(x) {
+  ### Custom percent rank formula
+  ### Implemented to fix the "pixelation" issue that was showing
+  ### on maps using the NPS gridded water balance model.  Intended to
+  ### reduce sensitivity to minor changes in dryness and
+  ### reduce impact of large number of days during fire season with
+  ### variables = 0
+
+  ## Round to one decimal.  Fix for floating point math issues on some
+  ## platforms.
   x2 <- round(x, 1)
+
+  ## Remove zeroes.  There are many many days per fire season with
+  ## variables = 0.  Causes percentiles to inflate so any day >0 is at
+  ## least ~40th percentile or so, depending on the distribution.
   x2[x2 == 0] <- NA
+
+  ## Take unique values in the time series.  Reduce impact on
+  ## percentile calculation of many low dryness days.
   x2 <- unique(x2) %>% as.numeric()
+
+  ## Ranks of unique, rounded dryness variables
   ranks <- data.frame(x = x2, pct = percent_rank(x2))
-  ## ranks[is.na(ranks)] <- 0
+
+  ## Set time series of rounded rolling variables to the %ile determined
+  ## on unique values above.
   inds <- match(round(x, 1), ranks$x)
   x3 <- ranks$pct[inds]
+
+  ## zeroes were treated as NA above, replace them
   x3 <- replace_na(x3, 0)
+  
   return(x3)
 }
 
