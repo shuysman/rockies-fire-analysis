@@ -345,7 +345,7 @@ ggcorr(wbdata_percentiles_forest, method = c("everything", "pearson"))
 We use the AUC (area under the curve) of the ROC (receiver operating characteristic) as a measure of goodness-of-fit to evaluate which predictors to use in the fire danger model.  
 
 
-```{r roc_analysis, fig.width = 6, fig.height = 6, include = TRUE, eval = T, message = F, echo = F}
+```{r roc_analysis, fig.width = 6, fig.height = 6, include = TRUE, eval = T, message = T, echo = T}
 
 make_roc <- function(options) {
   roll_window = as.numeric(options[1])
@@ -445,8 +445,52 @@ roc_options <- expand.grid(
 
 roc_table <- mclapply(roc_options, make_roc, mc.cores = 10) %>%
   bind_rows()
-                      
-knitr::kable(roc_table)
+
+
+### Top predictors Full AUC
+### Forest
+roc_table %>%
+  filter(maj_veg_cl == "forest") %>%
+  arrange(desc(auc)) %>%
+  head(n = 10) %>%
+  knitr::kable()
+
+### Non_forest
+roc_table %>%
+  filter(maj_veg_cl == "non_forest") %>%
+  arrange(desc(auc)) %>%
+  head(n = 10) %>%
+  knitr::kable()
+
+### Top predictors AUC20
+### Forest
+roc_table %>%
+  filter(maj_veg_cl == "forest") %>%
+  arrange(desc(auc20))%>%
+  head(n = 10) %>%
+  knitr::kable()
+
+### Non_forest
+roc_table %>%
+  filter(maj_veg_cl == "non_forest") %>%
+  arrange(desc(auc20))%>%
+  head(n = 10) %>%
+  knitr::kable()
+
+### Top predictors AUC10
+### Forest
+roc_table %>%
+  filter(maj_veg_cl == "forest") %>%
+  arrange(desc(auc10))%>%
+  head(n = 10) %>%
+  knitr::kable()
+
+### Non_forest
+roc_table %>%
+  filter(maj_veg_cl == "non_forest") %>%
+  arrange(desc(auc10))%>%
+  head(n = 10) %>%
+  knitr::kable()
 ```
 
 demonstrate histogram of conditions associated with fire or no fire to see how much overlap there is.  This helps interpret the ROC
@@ -558,15 +602,20 @@ regression3_formula <- function(b0, b1, b2, b3) {
     return (paste0("y = e^(", b0, " + ", b1, "x + ", b2, "x^2 + ", b3, "x^3)"))
 }
 
+### Selected window of time to view eCDF curves
+ecdf_window <- 7
+
+forest_data <- ignitions_forest %>% filter(window == ecdf_window)
+non_forest_data <- ignitions_non_forest %>% filter(window == ecdf_window)
 ```
 
-## Second Order
-Fits to ECDF curves may be improved by including a quadtratic term in regression
+
+## Third Order
 
 ### CWD Forest
 
-```{r ecdf-regression2-d-forest}
-ecdf_fn <- ecdf(ignitions_forest$D)
+```{r ecdf-regression3-d-forest}
+ecdf_fn <- ecdf(forest_data$D)
 summary(ecdf_fn)
 
 estimated <- data.frame(
@@ -576,7 +625,7 @@ estimated <- data.frame(
 estimated$quants <- quantile(ecdf_fn, estimated$dec)
 estimated$proportions <- ecdf_fn(estimated$quants)
 
-lm <- lm(log(proportions) ~ poly(quants, 2, raw = TRUE), data = estimated)
+lm <- lm(log(proportions) ~ poly(quants, 3, raw = TRUE), data = estimated)
 r2 <- summary(lm)$adj.r.squared
 estimated$predicted <- exp(predict(lm, data = estimated$quants))
 
@@ -587,25 +636,26 @@ summary(lm)
 b0 <- lm$coefficients[[1]]
 b1 <- lm$coefficients[[2]]
 b2 <- lm$coefficients[[3]]
+b3 <- lm$coefficients[[4]]
 
 plot(ecdf_fn)
 points(y = estimated$proportions, x = estimated$quants, col = "blue")
 points(y = estimated$predicted, x = estimated$quants, col = "red")
-curve(exp(b0 + b1*x + b2*(x^2)), add = TRUE, col = "red")
+curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
 ##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
 
 regression_formulas <- regression_formulas %>%
-    add_row(var = "D", order = "2", cover = "forest", formula = regression2_formula(b0, b1, b2), r2 = r2)
+    add_row(var = "D", order = "3", cover = "forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
 ```
 
 Estimated function predicting proportion of historic fires burning in forests at or below given percentile of CWD on day of ignition:
 
-$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2}\end{align*}$
+$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
 
 ### VPD Forest
 
-```{r ecdf-regression2-vpd-forest}
-ecdf_fn <- ecdf(ignitions_forest$VPD)
+```{r ecdf-regression3-vpd-forest}
+ecdf_fn <- ecdf(forest_data$VPD)
 summary(ecdf_fn)
 
 estimated <- data.frame(
@@ -615,7 +665,7 @@ estimated <- data.frame(
 estimated$quants <- quantile(ecdf_fn, estimated$dec)
 estimated$proportions <- ecdf_fn(estimated$quants)
 
-lm <- lm(log(proportions) ~ poly(quants, 2, raw = TRUE), data = estimated)
+lm <- lm(log(proportions) ~ poly(quants, 3, raw = TRUE), data = estimated)
 r2 <- summary(lm)$adj.r.squared
 estimated$predicted <- exp(predict(lm, data = estimated$quants))
 
@@ -626,25 +676,26 @@ summary(lm)
 b0 <- lm$coefficients[[1]]
 b1 <- lm$coefficients[[2]]
 b2 <- lm$coefficients[[3]]
+b3 <- lm$coefficients[[4]]
 
 plot(ecdf_fn)
 points(y = estimated$proportions, x = estimated$quants, col = "blue")
 points(y = estimated$predicted, x = estimated$quants, col = "red")
-curve(exp(b0 + b1*x + b2*(x^2)), add = TRUE, col = "red")
+curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
 ##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
 
 regression_formulas <- regression_formulas %>%
-    add_row(var = "VPD", order = "2", cover = "forest", formula = regression2_formula(b0, b1, b2), r2 = r2)
+    add_row(var = "VPD", order = "3", cover = "forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
 ```
 
 Estimated function predicting proportion of historic fires burning in forests at or below given percentile of VPD on day of ignition:
 
-$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2}\end{align*}$
+$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
 
-### CWD non_forest
+### CWD Non-forest
 
-```{r ecdf-regression2-d-non_forest}
-ecdf_fn <- ecdf(ignitions_non_forest$D)
+```{r ecdf-regression3-d-non_forest}
+ecdf_fn <- ecdf(non_forest_data$D)
 summary(ecdf_fn)
 
 estimated <- data.frame(
@@ -654,7 +705,7 @@ estimated <- data.frame(
 estimated$quants <- quantile(ecdf_fn, estimated$dec)
 estimated$proportions <- ecdf_fn(estimated$quants)
 
-lm <- lm(log(proportions) ~ poly(quants, 2, raw = TRUE), data = estimated)
+lm <- lm(log(proportions) ~ poly(quants, 3, raw = TRUE), data = estimated)
 r2 <- summary(lm)$adj.r.squared
 estimated$predicted <- exp(predict(lm, data = estimated$quants))
 
@@ -665,25 +716,46 @@ summary(lm)
 b0 <- lm$coefficients[[1]]
 b1 <- lm$coefficients[[2]]
 b2 <- lm$coefficients[[3]]
+b3 <- lm$coefficients[[4]]
 
-plot(ecdf_fn)
+plot(ecdf_fn, xlab = "Percentile of Deficit", ylab = "Proportion of historical wildfires", main = "eCDF Non_Forest Deficit, with ignition danger ratings", xlim = c(0,1))
 points(y = estimated$proportions, x = estimated$quants, col = "blue")
 points(y = estimated$predicted, x = estimated$quants, col = "red")
-curve(exp(b0 + b1*x + b2*(x^2)), add = TRUE, col = "red")
+curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
 ##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
+## low_thresh <- .1
+## med_thresh <- .4
+## high_thresh <- .7
+## x_low <- .46
+## segments(-5, low_thresh, x1 = x_low, y1 = low_thresh) ## Low Fire Danger horiz
+## text(x = .15, y = low_thresh + 0.02, label = "Low Fire Danger")
+## segments(x_low, -5, x1 = x_low, y1 = low_thresh) ## Low Fire Danger vert
+## text(x = x_low + .025, y = -.02, label = x_low)
+## x_med <- .87
+## segments(-5, med_thresh, x1 = x_med, y1 = med_thresh) ## High Fire Danger horiz
+## text(x = .15, y = med_thresh + 0.02, label = "Medium Fire Danger")
+## segments(x_med, -5, x1 = x_med, y1 = med_thresh) ## High Fire Danger vert
+## text(x = x_med + .025, y = -.02, label = x_med)
+## x_high <- .96
+## segments(-5, high_thresh, x1 = x_high, y1 = high_thresh) ## High Fire Danger horiz
+## text(x = .15, y = high_thresh + 0.02, label = "High Fire Danger")
+## segments(x_med, -5, x1 = x_high, y1 = high_thresh) ## High Fire Danger vert
+## text(x = x_high + .025, y = -.02, label = x_high)
+
+
 
 regression_formulas <- regression_formulas %>%
-    add_row(var = "D", order = "2", cover = "non_forest", formula = regression2_formula(b0, b1, b2), r2 = r2)
+    add_row(var = "D", order = "3", cover = "non_forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
 ```
 
 Estimated function predicting proportion of historic fires burning in non_forests at or below given percentile of CWD on day of ignition:
 
-$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2}\end{align*}$
+$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
 
-### VPD non_forest
+### VPD Non-forest
 
-```{r ecdf-regression2-vpd-non_forest}
-ecdf_fn <- ecdf(ignitions_non_forest$VPD)
+```{r ecdf-regression3-vpd-non_forest}
+ecdf_fn <- ecdf(non_forest_data$VPD)
 summary(ecdf_fn)
 
 estimated <- data.frame(
@@ -693,7 +765,7 @@ estimated <- data.frame(
 estimated$quants <- quantile(ecdf_fn, estimated$dec)
 estimated$proportions <- ecdf_fn(estimated$quants)
 
-lm <- lm(log(proportions) ~ poly(quants, 2, raw = TRUE), data = estimated)
+lm <- lm(log(proportions) ~ poly(quants, 3, raw = TRUE), data = estimated)
 r2 <- summary(lm)$adj.r.squared
 estimated$predicted <- exp(predict(lm, data = estimated$quants))
 
@@ -704,20 +776,75 @@ summary(lm)
 b0 <- lm$coefficients[[1]]
 b1 <- lm$coefficients[[2]]
 b2 <- lm$coefficients[[3]]
+b3 <- lm$coefficients[[4]]
+
+solve_ecdf <- function(x) {
+    exp(b0 + b1*x + b2*(x^2) + b3*(x^3))
+}
 
 plot(ecdf_fn)
 points(y = estimated$proportions, x = estimated$quants, col = "blue")
 points(y = estimated$predicted, x = estimated$quants, col = "red")
-curve(exp(b0 + b1*x + b2*(x^2)), add = TRUE, col = "red")
-##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
+curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
+## ##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
+## x_low <- round(log(low_thresh/a)/b,2)
+## segments(0, low_thresh, x1 = x_low, y1 = low_thresh) ## Low Fire Danger horiz
+## text(x = .3, y = low_thresh + 0.02, label = "Low Fire Danger")
+## segments(x_low, 0, x1 = x_low, y1 = low_thresh) ## Low Fire Danger vert
+## text(x = x_low, y = -.02, label = x_low)
+## x_high <- round(log(high_thresh/a)/b,2)
+## segments(0, high_thresh, x1 = x_high, y1 = high_thresh) ## High Fire Danger horiz
+## text(x = .3, y = high_thresh + 0.02, label = "High Fire Danger")
+## segments(x_high, 0, x1 = x_high, y1 = high_thresh) ## High Fire Danger vert
+## text(x = x_high, y = -.02, label = x_high)
 
 regression_formulas <- regression_formulas %>%
-    add_row(var = "VPD", order = "2", cover = "non_forest", formula = regression2_formula(b0, b1, b2), r2 = r2)
+    add_row(var = "VPD", order = "3", cover = "non_forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
 ```
 
 Estimated function predicting proportion of historic fires burning in non_forests at or below given percentile of VPD on day of ignition:
 
-$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2}\end{align*}$
+$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
+
+### RD Non-forest
+
+```{r ecdf-regression3-rd-non_forest}
+ecdf_fn <- ecdf(non_forest_data$RD)
+summary(ecdf_fn)
+
+estimated <- data.frame(
+    dec = seq(from = 0.01, to = 0.99, by = 0.01)
+)
+
+estimated$quants <- quantile(ecdf_fn, estimated$dec)
+estimated$proportions <- ecdf_fn(estimated$quants)
+
+lm <- lm(log(proportions) ~ poly(quants, 3, raw = TRUE), data = estimated)
+r2 <- summary(lm)$adj.r.squared
+estimated$predicted <- exp(predict(lm, data = estimated$quants))
+
+##plot(lm)
+
+summary(lm)
+
+b0 <- lm$coefficients[[1]]
+b1 <- lm$coefficients[[2]]
+b2 <- lm$coefficients[[3]]
+b3 <- lm$coefficients[[4]]
+
+plot(ecdf_fn)
+points(y = estimated$proportions, x = estimated$quants, col = "blue")
+points(y = estimated$predicted, x = estimated$quants, col = "red")
+curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
+##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
+
+regression_formulas <- regression_formulas %>%
+    add_row(var = "RD", order = "3", cover = "non_forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
+```
+
+Estimated function predicting proportion of historic fires burning in non_forests at or below given percentile of  `window` day rolling mean of RD on day of ignition:
+
+$\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
 
 ## Estimated Regression Formulas
 `r knitr::kable(regression_formulas)`
