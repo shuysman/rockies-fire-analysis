@@ -235,25 +235,19 @@ wbdata <- wbdata %>%
 percentiles <- mclapply(windows,
                         FUN = \(window) {
                           wbdata_smoothed <- select(wbdata, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-                            ## mutate_at(vars[1:5],
-                            ##           ~ slide_dbl(.x, mean, .before = window, .after = 0, .complete = TRUE)) %>%
-                            ## mutate_at(vars[6:9],
-                            ##           ~ slide_dbl(.x, sum, .before = window, .after = 0, .complete = TRUE)) %>%
                             mutate_at(vars[1:5],
                                       ~ rollapply(.x, window, mean, by = 1, partial = FALSE, fill = NA, align = "right")) %>%
                             mutate_at(vars[6:9],
                                       ~ rollapply(.x, window, sum, by = 1, partial = FALSE, fill = NA, align = "right")) 
 
 
-                          wbdata_percentiles <- 
+                          wbdata_percentiles <-
                             select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
                             filter(Date <= Ig_Date,
-                                   yday(Date) >=
-                                     case_when(maj_veg_cl == "forest" ~ forest_start,
-                                               maj_veg_cl == "non_forest" ~ non_forest_start),  ## Filter to fire season
-                                   yday(Date) <=
-                                     case_when(maj_veg_cl == "forest" ~ forest_end,
-                                               maj_veg_cl == "non_forest" ~ non_forest_end)) %>%
+                                   case_when(maj_veg_cl == "forest" ~
+                                               yday(Date) >= forest_start & yday(Date) <= forest_end,
+                                             maj_veg_cl == "non_forest" ~
+                                               yday(Date) >= non_forest_start & yday(Date) <= non_forest_end)) %>%
                             drop_na(vars) %>%
                             mutate(across(vars,
                                           my_percent_rank)) %>%
