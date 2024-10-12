@@ -315,11 +315,13 @@ wbdata_percentiles_forest %>%
   ggtitle(paste(region_name, "forest water balance percentile on ignition date"))
 
 wbdata_percentiles_forest %>%
-  filter(Event_ID == "UT3778610952720020601", year(Date) == 2000) %>%
+  filter(Event_ID == "UT3778610952720020601", year(Date) >= 1995, window == 7) %>%
   pivot_longer(vars) %>%
   filter(name == "D") %>%
   ggplot(mapping = aes(x = Date, y = value, color = maj_veg_cl)) +
   geom_line() +
+  #geom_vline(xintercept = as.numeric(ymd("2002-06-01"))) +
+  geom_hline(yintercept = 0.657) +
   facet_wrap(~name, scales = "free") +
   ggtitle(paste(region_name, "forest water balance percentile on ignition date"))
 ```
