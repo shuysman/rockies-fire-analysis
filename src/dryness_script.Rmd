@@ -512,6 +512,42 @@ roc_table %>%
   knitr::kable()
 ```
 
+### Window vs AUC
+``` {r auc-window}
+roc_table %>%
+  filter(maj_veg_cl == "forest") %>%
+  ggplot() +
+  geom_line(aes(x = window, y = auc, color = var)) +
+  labs()
+  
+roc_table %>%
+  filter(maj_veg_cl == "non_forest") %>%
+  ggplot() +
+  geom_line(aes(x = window, y = auc, color = var))
+
+roc_table %>%
+  filter(maj_veg_cl == "forest") %>%
+  ggplot() +
+  geom_line(aes(x = window, y = auc20, color = var))
+
+roc_table %>%
+  filter(maj_veg_cl == "non_forest") %>%
+  ggplot() +
+  geom_line(aes(x = window, y = auc20, color = var))
+
+roc_table %>%
+  filter(maj_veg_cl == "forest") %>%
+  ggplot() +
+  geom_line(aes(x = window, y = auc10, color = var))
+
+roc_table %>%
+  filter(maj_veg_cl == "non_forest") %>%
+  ggplot() +
+  geom_line(aes(x = window, y = auc10, color = var))
+
+```
+
+
 demonstrate histogram of conditions associated with fire or no fire to see how much overlap there is.  This helps interpret the ROC
 ```{r density-hist, echo = F, message = F}
 plot(density(ignitions_forest$D), col="red")
