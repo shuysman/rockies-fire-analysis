@@ -1,9 +1,11 @@
 \documentclass{article}
 \usepackage[letterpaper,margin=1in]{geometry}
 \usepackage{gensymb}
+\usepackage{enumitem}
+\usepackage{subcaption}
 \usepackage{graphicx}
 \graphicspath{
-  {../img/Middle_Rockies/}
+  {../img/}
 }
 \usepackage{hyperref}
 \hypersetup{
@@ -35,6 +37,15 @@ Wildfire has important ecological consequences, such as altered forest structure
 
 Fire management in national parks in a high priority and has consequences for the ecosystems managed by the parks as well as park visitors.
 
+This analysis has several goals:
+
+\begin{enumerate}[label=(\roman*)]
+\item Reimplement the wildfire danger rating system for the Southern Rockies ecoregion developed by \citet{thomaWaterBalanceIndicator2020} using a different climate data source, gridMET, to facilitate the development of projections of fire risk.
+\item Extend this wildfire danger rating system to a new location, the Middle Rockies Ecoregion.
+\item Test whether the 14-day window of time used for rolling calculations in \citet{thomaWaterBalanceIndicator2020} is optimal or whether different lengths of time improve classification of fire risk.
+\item Develop short-term forecasts and long-term projections of fire risk for the Southern and Middle Rockies Ecoregions.
+\end{enumerate}
+  
 This work extends the wildfire ignition danger rating system implemented for the Southern Rockies level III ecoregion \citep{omernikEcoregionsConterminousUnited1987} from \citet{thomaWaterBalanceIndicator2020} to the Middle Rockies level III ecoregion.  
 
 *Discuss advantages of ROC/threshold classifier approach.  Things I didn't really get from reading Thoma 2020*
@@ -62,7 +73,7 @@ We then used these historical distributions of water balance percentiles on day 
 \subsection{Historical Fire Season \& Frequency in the Middle Rockies Ecoregion}
 
 \begin{figure}[ht]
-  \includegraphics[width=.75\textwidth]{map-1.png}
+  \includegraphics[width=.75\textwidth]{Middle_Rockies/map-1.png}
   \caption{Historical wildfires larger than 1,000 acres occurring in the Middle Rockies Level III Ecoregion.  Centroid locations for MTBS fire polygons occurring on majority Forest and Non-Forest cover types are shown.}
   \label{fig:map}
 \end{figure}
@@ -72,13 +83,36 @@ Of the 417 historical wildfires \textgreater1000 acres in size occurring in the 
 The fire season for ``forest'' wildfires was determined to be between DOY 93 and 289.  The ``non-forest'' wildfire season was between DOY 6 and 350.  ucoFires were similarly distributed along the fire season in both forest and non-forest wildfires (Figure \ref{fig:fire-dens}). The mean day of year of ignition was 217.6 for forest and 215.4 for non-forest wildfires, with no evidence of difference in mean ignition day of year between the groups (Welch Two Sample t-test: t = 0.60794, df = 264.83, p-value = 0.5437).
 
 \begin{figure}[ht]
-  \includegraphics[scale=1]{fire-distribution-1.png}
+  \includegraphics[scale=1]{Middle_Rockies/fire-distribution-1.png}
   \caption{Density plot of fire frequency by day of year, for forest and non-forest cover types.}
   \label{fig:fire-dens}
 \end{figure}
 
+
 \subsection{Rolling Window}
 \subsection{Classifiers of Ignition}
+
+For both Middle and Southern Rockies Ecoregions, measures of atmospheric dryness (CWD, VPD, and RD) were consistently the best overall classifiers of ignition as measured by overall AUC at all rolling window widths examined.  For forest cover types, the variables and rolling window widths that gave the best overall classification of fire ignition were CWD with 3 day windows for the Middle Rockies and RD with 17 day windows for the Southern Rockies Ecoregions.  For non-forest cover types, the best predictors were VPD with 1 day window (or daily) and RD with 17 day windows for the Middle and Southern Rockies Ecoregions, respectively.  However, choice of measure of atmospheric dryness and rolling window width appears to have minimal effect on overall ability to classify ignition, with RD, VPD, and CWD having similar AUC values for the rolling windows examined, with confidence intervals for AUC values overlapping.  As similar performance can be expected from any of these variables, modelers can be justified selecting one or another based on practical requirements such as data availability and ease of computation.
+
+While measures of atmospheric dryness performed similarly to one another, they do appear to strongly outperform the other measures tested in classifying fire risk.   
+
+\begin{figure}[ht]
+  \centering
+  \begin{subfigure}{.5\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{Southern Rockies-forest-3-days.png}
+    \caption{Southern Rockies}
+    \label{fig:sr-auc}
+  \end{subfigure}%
+  \begin{subfigure}{.5\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{Middle Rockies-forest-3-days.png}
+    \caption{Middle Rockies}
+    \label{fig:mr-auc}
+  \end{subfigure}
+  \caption{AUC Curves for Southern and Middle Rockies Ecoregions, 3 day rolling window.}
+  \label{fig:auc}
+\end{figure}
 
 \section{Discussion}
 \subsection{Historical Fire Season \& Frequency in the Middle Rockies Ecoregion}
