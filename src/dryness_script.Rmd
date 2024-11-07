@@ -244,11 +244,12 @@ percentiles <- mclapply(windows,
 
                           wbdata_percentiles <-
                             select(wbdata_smoothed, c(Event_ID, Ig_Date, maj_veg_cl, Acres, fire, Date, vars)) %>%
-                            filter(Date <= Ig_Date,
-                                   case_when(maj_veg_cl == "forest" ~
-                                               yday(Date) >= forest_start & yday(Date) <= forest_end,
-                                             maj_veg_cl == "non_forest" ~
-                                               yday(Date) >= non_forest_start & yday(Date) <= non_forest_end)) %>%
+                            ## filter(Date <= Ig_Date,
+                            ##        case_when(maj_veg_cl == "forest" ~
+                            ##                    yday(Date) >= forest_start & yday(Date) <= forest_end,
+                            ##                  maj_veg_cl == "non_forest" ~
+                            ##                    yday(Date) >= non_forest_start & yday(Date) <= non_forest_end)) %>%
+                            filter(Date <= Ig_Date) %>%
                             drop_na(vars) %>%
                             mutate(across(vars,
                                           my_percent_rank)) %>%
