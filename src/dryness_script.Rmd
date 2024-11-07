@@ -517,7 +517,7 @@ roc_table %>%
 ### Window vs AUC
 ``` {r auc-window, fig.height = 12, fig.width = 8}
 forest_auc_window <- roc_table %>%
-  #filter(maj_veg_cl == "forest") %>%
+  filter(maj_veg_cl == "forest") %>%
   ggplot() +
   geom_line(aes(x = window, y = auc, color = var)) +
   geom_ribbon(aes(x = window, ymin = auclb, ymax = aucub, color = var), linetype = 2, alpha = 0.05) +
