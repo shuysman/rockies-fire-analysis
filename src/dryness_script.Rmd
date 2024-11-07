@@ -521,7 +521,6 @@ forest_auc_window <- roc_table %>%
   ggplot() +
   geom_line(aes(x = window, y = auc, color = var)) +
   geom_ribbon(aes(x = window, ymin = auclb, ymax = aucub, color = var), linetype = 2, alpha = 0.05) +
-  facet_wrap(~ maj_veg_cl) +
   labs(title = "Forest AUC")
 
 non_forest_auc_window <- roc_table %>%
