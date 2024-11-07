@@ -17,6 +17,7 @@ library(zoo)
 library(pROC)
 library(glue)
 library(parallel)
+library(ggpubr)
 
 plot_theme <- theme_bw() +
     theme(text = element_text(size=16))
@@ -25,7 +26,7 @@ plot_theme <- theme_bw() +
 vars <- c("RD", "VPD", "T", "SOIL", "AWSSM", "RAIN", "AET", "D", "GDD")
 
 ### Set region to use for analysis.  Settings for regions stored in 'settings' variable
-region_name <- "Southern Rockies"
+region_name <- "Middle Rockies"
 
 settings <- tribble(
     ~region, ~params,
@@ -457,7 +458,7 @@ make_roc <- function(options) {
 
 roc_options <- expand.grid(
   window = windows,
-  class = c("forest", "non_forest")
+  maj_veg_cl = c("forest", "non_forest")
 ) %>%
   t() %>%
   data.frame()
@@ -513,37 +514,56 @@ roc_table %>%
 ```
 
 ### Window vs AUC
-``` {r auc-window}
-roc_table %>%
-  filter(maj_veg_cl == "forest") %>%
+``` {r auc-window, fig.height = 12, fig.width = 8}
+forest_auc_window <- roc_table %>%
+  #filter(maj_veg_cl == "forest") %>%
   ggplot() +
   geom_line(aes(x = window, y = auc, color = var)) +
-  labs()
-  
-roc_table %>%
+  geom_ribbon(aes(x = window, ymin = auclb, ymax = aucub, color = var), linetype = 2, alpha = 0.05) +
+  facet_wrap(~ maj_veg_cl) +
+  labs(title = "Forest AUC")
+
+non_forest_auc_window <- roc_table %>%
   filter(maj_veg_cl == "non_forest") %>%
   ggplot() +
-  geom_line(aes(x = window, y = auc, color = var))
+  geom_line(aes(x = window, y = auc, color = var)) +
+  geom_ribbon(aes(x = window, ymin = auclb, ymax = aucub, color = var), linetype = 2, alpha = 0.05) +
+  labs(title = "Non_forest AUC")
 
-roc_table %>%
+forest_pauc20_window <- roc_table %>%
   filter(maj_veg_cl == "forest") %>%
   ggplot() +
-  geom_line(aes(x = window, y = auc20, color = var))
+  geom_line(aes(x = window, y = auc20, color = var)) +
+  labs(title = "Forest pAUC (.2)")
 
-roc_table %>%
+non_forest_pauc20_window <- roc_table %>%
   filter(maj_veg_cl == "non_forest") %>%
   ggplot() +
-  geom_line(aes(x = window, y = auc20, color = var))
+  geom_line(aes(x = window, y = auc20, color = var)) +
+  labs(title = "Non_forest pAUC (.2)")
 
-roc_table %>%
+forest_pauc10_window <- roc_table %>%
   filter(maj_veg_cl == "forest") %>%
   ggplot() +
-  geom_line(aes(x = window, y = auc10, color = var))
+  geom_line(aes(x = window, y = auc10, color = var)) +
+  labs(title = "Forest pAUC (.1)")
 
-roc_table %>%
+non_forest_pauc10_window <- roc_table %>%
   filter(maj_veg_cl == "non_forest") %>%
   ggplot() +
-  geom_line(aes(x = window, y = auc10, color = var))
+  geom_line(aes(x = window, y = auc10, color = var)) +
+  labs(title = "Non_forest pAUC (.1)")
+
+window_plot <- ggarrange(forest_auc_window, non_forest_auc_window,
+                         forest_pauc20_window, non_forest_pauc20_window,
+                         forest_pauc10_window, non_forest_pauc10_window,
+                         ncol = 2,
+                         nrow = 3,
+                         legend = "right",
+                         common.legend = TRUE
+                         )
+
+annotate_figure(window_plot, top = text_grob("Rolling window width vs. (p)AUC", size = 18))
 
 ```
 
