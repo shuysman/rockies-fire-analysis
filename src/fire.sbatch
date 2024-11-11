@@ -34,6 +34,7 @@ hostname -s                     # print a message from the compute node
 module load Mamba
 source $HOME/.bashrc
 mamba activate r-test
+Rscript historical-quants.R
 Rscript projections-terra.R ${MODELS[$SLURM_ARRAY_TASK_ID]} rcp45
 Rscript projections-terra.R ${MODELS[$SLURM_ARRAY_TASK_ID]} rcp85
 date                            # print the date again
