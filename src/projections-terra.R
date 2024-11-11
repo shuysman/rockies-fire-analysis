@@ -76,16 +76,16 @@ wbdata_historical_quants <- terra::rast(quants_path) %>% clamp(lower = 0)
 names(wbdata_historical_quants) <- quants
 
 
-above_quants_0.1 <- terra::compare(wbdata_future_smoothed, subset(wbdata_historical_quants, 1), ">")
-above_quants_0.15 <- terra::compare(wbdata_future_smoothed, subset(wbdata_historical_quants, 2), ">")
-above_quants_0.2 <- terra::compare(wbdata_future_smoothed, subset(wbdata_historical_quants, 3), ">")
+above_quants_0.35 <- terra::compare(wbdata_future_smoothed, subset(wbdata_historical_quants, 1), ">", falseNA = TRUE)
+above_quants_0.5 <- terra::compare(wbdata_future_smoothed, subset(wbdata_historical_quants, 2), ">", falseNA = TRUE)
+above_quants_0.7 <- terra::compare(wbdata_future_smoothed, subset(wbdata_historical_quants, 3), ">", falseNA = TRUE)
 
-s_0.1 <- terra::tapp(above_quants_0.1, index = "years", fun = "sum")
-writeCDF(s_0.1, filename = paste0(out_path, "Annual_sum_days_above_fire_risk_threshold_0.1_", model, "_", scenario, ".nc"))
-s_0.15 <- terra::tapp(above_quants_0.15, index = "years", fun = "sum")
-writeCDF(s_0.15, filename = paste0(out_path, "Annual_sum_days_above_fire_risk_threshold_0.15_", model, "_", scenario, ".nc"))
-s_0.2 <- terra::tapp(above_quants_0.2, index = "years", fun = "sum")
-writeCDF(s_0.2, filename = paste0(out_path, "Annual_sum_days_above_fire_risk_threshold_0.2_", model, "_", scenario, ".nc"))
+s_0.35 <- terra::tapp(above_quants_0.35, index = "years", fun = "sum", na.rm = TRUE)
+writeCDF(s_0.1, filename = paste0(out_path, "Annual_sum_days_above_fire_risk_threshold_0.35_", model, "_", scenario, ".nc"))
+s_0.5 <- terra::tapp(above_quants_0.5, index = "years", fun = "sum", na.rm = TRUE)
+writeCDF(s_0.15, filename = paste0(out_path, "Annual_sum_days_above_fire_risk_threshold_0.5_", model, "_", scenario, ".nc"))
+s_0.7 <- terra::tapp(above_quants_0.7, index = "years", fun = "sum", na.rm = TRUE)
+writeCDF(s_0.2, filename = paste0(out_path, "Annual_sum_days_above_fire_risk_threshold_0.7_", model, "_", scenario, ".nc"))
 
 end.time <- Sys.time()
 time.taken <- round(end.time - start.time,2)
