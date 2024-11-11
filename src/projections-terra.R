@@ -38,10 +38,10 @@ future_path <- paste0(home_path, "/data/nps_gridded_wb/gye/forecasts/rolling_sum
 ##future_path <- paste0("/media/smithers/shuysman/data/nps_gridded_wb/gye/forecasts/rolling_sum/")
 ##hist_path <- "/media/smithers/shuysman/data/nps_gridded_wb/gye/historical/rolling_sum/"
 ##quants_path <- "/home/steve/OneDrive/nothern-rockies-dryness/out/Deficit_historical_quants_0.79_0.845_0.875_.nc"
-quants_path <- paste0(home_path, "/data/gye/historical/rolling_sum/Deficit_historical_quants_0.35_0.5_0.7_.nc")
 hist_path <- paste0(home_path, "/data/nps_gridded_wb/gye/historical/rolling_sum/")
 ##out_path <- "/media/smithers/shuysman/data/out/fire/"
 out_path <- "./out/"
+quants_path <- paste0(out_path, "/Deficit_historical_quants_0.35_0.5_0.7_.nc")
 ## nc_data_path <- "/home/steve/Downloads/thredds/"
 
 ## models <- c('NorESM1-M', 'MRI-CGCM3','MIROC-ESM-CHEM', 'MIROC5','IPSL-CM5A-LR','inmcm4','HadGEM2-CC365','CSIRO-Mk3-6-0','CNRM-CM5','CanESM2', 'BNU-ESM','CCSM4', 'GFDL-ESM2G')
