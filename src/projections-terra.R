@@ -70,7 +70,7 @@ wbdata_future_smoothed <- terra::rast(future_files)
 ##     subset(yday(time(.)) <= fire_season_end)
 
 
-wbdata_historical_quants <- terra::rast(quants_path)
+wbdata_historical_quants <- terra::rast(quants_path) %>% clamp(lower = 0)
 names(wbdata_historical_quants) <- quants
 
 
