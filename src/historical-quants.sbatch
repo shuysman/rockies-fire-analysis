@@ -28,5 +28,5 @@ hostname -s                     # print a message from the compute node
 module load Mamba
 source $HOME/.bashrc
 mamba activate r-test
-Rscript historical-quants.R
+Rscript historical_quants.R
 date
