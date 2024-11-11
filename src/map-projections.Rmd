@@ -1,0 +1,64 @@
+
+
+``` r
+library(terra)
+library(tidyterra)
+library(tidyverse)
+library(glue)
+
+quants <- c(0.35, .5, .7)
+scenarios <- c("rcp45", "rcp85")
+
+projections_dir <- file.path("/media/smithers/shuysman/data/out/fire/")
+
+test_file <- file.path(projections_dir, "Annual_sum_days_above_fire_risk_threshold_0.35_inmcm4_rcp85.nc")
+
+near <- 2021:2040
+mid <- 2041:2060
+long <- 2081:2099
+
+for (quant in quants) {
+  for (scenario in scenarios) {
+    projections <- rast(list.files(path = projections_dir,
+                                  pattern = glue("Annual_sum_days_above_fire_risk_threshold_{quant}_.*_{scenario}.nc"),
+                                  full.names = TRUE))
+
+    ens <- terra::tapp(projections, fun = "mean", index = "years") %>%
+      subst(NA, 0) ## Fill in holes in projections because zeroes filled as NA
+
+    writeCDF(ens, file.path(projections_dir, glue("Annual_sum_days_above_fire_risk_threshold_{quant}_ensemble_{scenario}.nc")), overwrite = TRUE)
+
+    for (period in list(near, mid, long)) {
+      ens_period <- subset(ens, year(time(ens)) %in% year(period))
+      ens_mean <- mean(ens_period)
+
+      ens_mean_filename <- glue("Ensemble_mean_days_above_fire_risk_{quant}_{scenario}_{head(period, 1)}-{tail(period, 1)}.nc")
+      writeCDF(ens_mean, file.path(projections_dir, ens_mean_filename), overwrite = TRUE)
+      
+    }
+  }
+}
+
+```
+
+```{r ens-plot}
+ens_rcp45 <- rast(list.files(path = projections_dir,
+                             pattern = "Ensemble_mean_days_above_fire_risk_0.35_rcp45.*.nc",
+                             full.names = TRUE))
+names(ens_rcp45) <- c("RCP4.5 2021-2040", "RCP4.5 2041-2060", "RCP4.5 2081-2099")
+
+ens_rcp85 <- rast(list.files(path = projections_dir,
+                             pattern = "Ensemble_mean_days_above_fire_risk_0.35_rcp85.*.nc",
+                             full.names = TRUE))
+names(ens_rcp85) <- c("RCP8.5 2021-2040", "RCP8.5 2041-2060", "RCP8.5 2081-2099")
+
+ens <- c(ens_rcp45, ens_rcp85)
+
+ggplot() +
+  geom_spatraster(data = ens) +
+  facet_wrap(~lyr, ncol = 3) +
+  scale_fill_viridis_c(option = "inferno") +
+  theme_bw() +
+  ggtitle("Ensemble projections of wildfire risk in the GYE.  Quantile threshold = 0.35")
+ggsave("img/Middle_Rockies/wildfire_risk_projections_gye.png", width = 8, height = 8)
+```
