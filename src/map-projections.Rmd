@@ -57,7 +57,7 @@ ens <- c(ens_rcp45, ens_rcp85)
 ggplot() +
   geom_spatraster(data = ens) +
   facet_wrap(~lyr, ncol = 3) +
-  scale_fill_viridis_c(option = "inferno") +
+  scale_fill_viridis_c(name = "Mean Days", option = "inferno") +
   theme_bw() +
   ggtitle("Ensemble projections of wildfire risk in the GYE.  Quantile threshold = 0.35")
 ggsave("img/Middle_Rockies/wildfire_risk_projections_gye.png", width = 8, height = 8)
