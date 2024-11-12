@@ -57,6 +57,7 @@ ens <- c(ens_rcp45, ens_rcp85)
 
 ggplot() +
   geom_spatraster(data = ens) +
+  stat_spatraster(data = ens, aes(label = after_stat(round(value,0))), geom = "label", maxcell = 4, size = 4, alpha = 0.5) +
   facet_wrap(~lyr, ncol = 3) +
   scale_fill_viridis_c(name = "Mean Days", option = "inferno") +
   theme_bw() +
