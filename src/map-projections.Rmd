@@ -29,7 +29,8 @@ for (quant in quants) {
     writeCDF(ens, file.path(projections_dir, glue("Annual_sum_days_above_fire_risk_threshold_{quant}_ensemble_{scenario}.nc")), overwrite = TRUE)
 
     for (period in list(near, mid, long)) {
-      ens_period <- subset(ens, year(time(ens)) %in% year(period))
+      ens_period <- subset(ens, time(ens) %in% period)
+      print(time(ens_period))
       ens_mean <- mean(ens_period)
 
       ens_mean_filename <- glue("Ensemble_mean_days_above_fire_risk_{quant}_{scenario}_{head(period, 1)}-{tail(period, 1)}.nc")
@@ -45,12 +46,12 @@ for (quant in quants) {
 ens_rcp45 <- rast(list.files(path = projections_dir,
                              pattern = "Ensemble_mean_days_above_fire_risk_0.35_rcp45.*.nc",
                              full.names = TRUE))
-names(ens_rcp45) <- c("RCP4.5 2021-2040", "RCP4.5 2041-2060", "RCP4.5 2081-2099")
+names(ens_rcp45) <- c("RCP4.5 2023-2040", "RCP4.5 2041-2060", "RCP4.5 2081-2099")
 
 ens_rcp85 <- rast(list.files(path = projections_dir,
                              pattern = "Ensemble_mean_days_above_fire_risk_0.35_rcp85.*.nc",
                              full.names = TRUE))
-names(ens_rcp85) <- c("RCP8.5 2021-2040", "RCP8.5 2041-2060", "RCP8.5 2081-2099")
+names(ens_rcp85) <- c("RCP8.5 2023-2040", "RCP8.5 2041-2060", "RCP8.5 2081-2099")
 
 ens <- c(ens_rcp45, ens_rcp85)
 
