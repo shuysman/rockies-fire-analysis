@@ -1,4 +1,4 @@
-\documentclass{article}
+\documentclass[11pt]{article}
 \usepackage[letterpaper,margin=1in]{geometry}
 \usepackage{gensymb}
 \usepackage{enumitem}
@@ -40,7 +40,7 @@ Fire management in national parks in a high priority and has consequences for th
 This analysis has several goals:
 
 \begin{enumerate}[label=(\roman*)]
-\item Reimplement the wildfire danger rating system for the Southern Rockies ecoregion developed by \citet{thomaWaterBalanceIndicator2020} using a different climate data source, gridMET, to facilitate the development of projections of fire risk.
+\item Implement the wildfire danger rating system for the Southern Rockies ecoregion developed by \citet{thomaWaterBalanceIndicator2020} using a different climate data source, gridMET, to facilitate the development of projections of fire risk.
 \item Extend this wildfire danger rating system to a new location, the Middle Rockies Ecoregion.
 \item Test whether the 14-day window of time used for rolling calculations in \citet{thomaWaterBalanceIndicator2020} is optimal or whether different lengths of time improve classification of fire risk.
 \item Develop short-term forecasts and long-term projections of fire risk for the Southern and Middle Rockies Ecoregions.
@@ -68,7 +68,31 @@ Climate and water balance variable with the highest area under the curve (AUC) o
 
 Once the best classifiers of ignition and the optimal window of time were determined, an ignition danger rating system was developed by modeling the proportion of historical wildfires that ignited at or below percentiles of the best performing climate/water balance variables. [eCDF]
 
-We then used these historical distributions of water balance percentiles on day of ignition to develop near-term forecasts and long-term projections of fire ignition danger.  Near-term forecasts use cfsv2 forecast data from gridMET as inputs.  Long-term projections were developed for [n] GCMs provided by the MACA gridded climate data product \citep{abatzoglouComparisonStatisticalDownscaling2012}.  MACA data are downscaled using gridMET so the historical climate conditions developed using gridMET can compared directly to MACA conditions without bias correction.
+We then used these historical distributions of water balance percentiles on day of ignition to develop near-term forecasts and long-term projections of fire ignition danger.  Near-term forecasts use cfsv2 forecast data from gridMET as inputs.  Long-term projections were developed for [n] GCMs provided by the MACA gridded climate data product \citep{abatzoglouComparisonStatisticalDownscaling2012}.  MACA data are downscaled using gridMET so the historical climate conditions developed using gridMET can compared directly to MACA conditions without bias correction.  Long-term fire risk was characterized by summing days above a certain threshold of fire risk then averaging for near-term (2023-2040), mid-term (2041-2060), and late-century (2081-2099) periods.  A threshold of 0.35 was selected for Figure \ref{fig:projected-risk}, which corresponds to the percentile of dryness (7 day rolling sum of D) at which 10\% of historical ignitions in forest cover types occurred.
+
+\begin{table}[h!]
+  \centering
+  \begin{tabular}{ c }
+    \hline
+    GCM \\
+    \hline
+    BNU-ESM \\
+    CanESM2 \\
+    CCSM4 \\
+    CNRM-CM5 \\
+    CSIRO-Mk3-6-0 \\
+    GFDL-ESM2G \\
+    HadGEM2-CC365 \\
+    inmcm4 \\
+    IPSL-CM5A-LR \\
+    MIROC5 \\
+    MRI-CGCM3 \\
+    NorESM1-M \\
+    \hline
+  \end{tabular}
+  \caption{GCMs used to make projections of wildfire risk in the GYE.  All GCMs were included in ``ensemble'' projections.}
+  \label{table:gcms}
+\end{table}
 
 \section{Results}
 
@@ -76,7 +100,7 @@ We then used these historical distributions of water balance percentiles on day 
 
 \begin{figure}[ht]
   \includegraphics[width=.75\textwidth]{Middle_Rockies/map-1.png}
-  \caption{Historical wildfires larger than 1,000 acres occurring in the Middle Rockies Level III Ecoregion.  Centroid locations for MTBS fire polygons occurring on majority Forest and Non-Forest cover types are shown.  Sources: Stadia Maps (stadiamaps.com), Stamen Design (stamen.com). \textit{there is an issue with the R mapping library I used, which makes the vector objects appear misaligned with the basemap below.  I have a fix but have not implemented it for this code.  The locations shown are approximately correct without the fix.}}
+  \caption{Historical wildfires larger than 1,000 acres occurring in the Middle Rockies Level III Ecoregion.  Centroid locations for MTBS fire polygons occurring on majority Forest and Non-Forest cover types are shown.  Sources: Stadia Maps (stadiamaps.com), Stamen Design (stamen.com). \textit{there is an issue with the R mapping library I used, which makes the vector objects appear misaligned with the basemap below.  This is not an issue with the data. I have a fix but have not implemented it for this code.  The locations shown are approximately correct as displayed here without the fix.}}
   \label{fig:map}
 \end{figure}
 
@@ -92,6 +116,8 @@ The fire season for ``forest'' wildfires was determined to be between DOY 93 and
 
 
 \subsection{Rolling Window}
+The different rolling window lengths tested (1, 3, 5, 7, 9, 11, 14, 17, 21,  and 31 days) had similar performance as measured by AUC and pAUC for most of the variables examined \ref{fig:auc_window}. AUC values for D and VPD were relatively constant across all rolling window lengths, however, .2 and .1 pAUC values showed evidence of decreasing classification performance for these variables as rolling window length increases.  SOIL showed a decreasing pattern for all AUC and pAUC measures as rolling window length increased.  AET showed increasing classification performance as rolling window length increased.  
+
 \subsection{Classifiers of Ignition}
 
 For both Middle and Southern Rockies Ecoregions, measures of atmospheric dryness (CWD, VPD, and RD) were consistently the best overall classifiers of ignition as measured by overall AUC at all rolling window widths examined.  For forest cover types, the variables and rolling window widths that gave the best overall classification of fire ignition were CWD with 3 day windows for the Middle Rockies and RD with 17 day windows for the Southern Rockies Ecoregions.  For non-forest cover types, the best predictors were VPD with 1 day window (or daily) and RD with 17 day windows for the Middle and Southern Rockies Ecoregions, respectively.  However, choice of measure of atmospheric dryness and rolling window width appears to have minimal effect on overall ability to classify ignition, with RD, VPD, and CWD having similar AUC values for the rolling windows examined, with confidence intervals for AUC values overlapping.  As similar performance can be expected from any of these variables, modelers can be justified selecting one or another based on practical requirements such as data availability and ease of computation.
@@ -124,11 +150,31 @@ While measures of atmospheric dryness performed similarly to one another, they d
   \label{fig:auc_window}
 \end{figure}
 
+\begin{figure}
+  \centering
+  \includegraphics[width=.90\textwidth]{Middle_Rockies/wildfire_risk_projections_gye.png}
+  \caption{Ensemble projections of forest wildfire risk in the GYE.  RCP4.5 and RCP8.5 ensemble mean days above wildfire risk threshold (0.35 quantile of dryness) shown.  The 0.35 percentile of dryness (7 day rolling sum of deficit) corresponds to level of dryness at which approximately 10\% of fires burned at or below.  This is a relatively low level of fire risk leading to conservative projections.  Mean days for periods 2021-2040, 2041-2060, and 2081-2099 are shown.  Six points were assigned in a grid and values sampled for each interval shown, to show the changes in fire risk across time for the sampled locations (\textit{Not totally sure how I feel about this way of showing the change in fire risk for given locations, there are other ways I can visualize this but also I'm trying to keep the number of plots down.}).}
+  \label{fig:projected-risk}
+\end{figure}
+
 \section{Discussion}
 \subsection{Historical Fire Season \& Frequency in the Middle Rockies Ecoregion}
 \subsection{Classifiers of Ignition}
+D and VPD were consistently the strongest classifiers of both forest and non-forest wildfire ignition for fires that burned at least 405 ha in the Middle Rockies ecoregion for almost all rolling window lengths examined \ref{fig:auc_window}.  These results are very similar to the wildfire ignition danger rating system for the Middle Rockies developed by \Citet{thomaWaterBalanceIndicator2020}, which found D and VPD were the strongest classifiers of ignition using 7 day rolling sums or means.  In our analysis of the Middle Rockies, D and VPD had similar performance with overall AUC values around 0.8-0.9 for all rolling window widths between 1 and 31 days, with confidence intervals overlapping.  pAUC values for VPD for forest ignitions were relatively constant across the range of rolling window widths, while pAUC$_{0.1}$ values decreased as rolling window increased.  Given the consequences of false negatives when classifying fire risk are more severe under the driest conditions, this gives some support to using rolling window widths somewhere between 3-10 days if D would be used to classify fire risk.
+
+
+
+
 \subsection{Now-casts and near-term forecasts of fire ignition danger}
+
+Should I include this section? A discussion of the implementation on ClimateAnalyzer
+
 \subsection{Long-term projections of fire ignition danger}
+
+Long-term projections of fire ignition danger in the Greater Yellowstone Ecosystem (GYE) show increased fire risk across the region by the end of the century under both RCP4.5 and RCP8.5 ensemble conditions \ref{fig:projected-risk}.  For a location in the region that currently shows low fire risk, an increase from 6-10 days above the fire risk threshold to 23-61 days could be seen by the end of the century.  For a location currently showing higher fire risk, an increase form 88-89 to 96-109 could be seen.
+
+
+
 
 \clearpage
 
