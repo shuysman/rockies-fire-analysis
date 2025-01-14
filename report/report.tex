@@ -104,7 +104,7 @@ We then used these historical distributions of water balance percentiles on day 
   \label{fig:map}
 \end{figure}
 
-Of the 417 historical wildfires \textgreater1000 acres in size occurring in the Middle Rockies Ecoregion, 110 were determined to occur on ``forest'' and 307 on ``non-forest'' cover types (Figure \ref{fig:map}).  ``Forest'' wildfires occurred between 1985-07-12 and 2020-10-03.  ``Non-forest'' wildfires occurred between 1984-08-19 and 2020-10-30.  The largest ``forest'' wildfire was 563,527 acres and the largest ``non-forest'' wildfire was 303,427 acres.
+Of the 417 historical wildfires greater than 1,000 acres in size occurring in the Middle Rockies Ecoregion, 110 were determined to occur on ``forest'' and 307 on ``non-forest'' cover types (Figure \ref{fig:map}).  ``Forest'' wildfires occurred between 1985-07-12 and 2020-10-03.  ``Non-forest'' wildfires occurred between 1984-08-19 and 2020-10-30.  The largest ``forest'' wildfire was 563,527 acres and the largest ``non-forest'' wildfire was 303,427 acres.
 
 The fire season for ``forest'' wildfires was determined to be between DOY 93 and 289.  The ``non-forest'' wildfire season was between DOY 6 and 350.  Fires were similarly distributed along the fire season in both forest and non-forest wildfires (Figure \ref{fig:fire-dens}). The mean day of year of ignition was 217.6 for forest and 215.4 for non-forest wildfires, with no evidence of difference in mean ignition day of year between the groups (Welch Two Sample t-test: t = 0.60794, df = 264.83, p-value = 0.5437).
 
@@ -124,25 +124,13 @@ For both Middle and Southern Rockies Ecoregions, measures of atmospheric dryness
 
 While measures of atmospheric dryness performed similarly to one another, they do appear to strongly outperform the other measures tested in classifying fire risk.   
 
-\begin{figure}[ht]
+\begin{figure}
   \centering
-  \begin{subfigure}{.5\textwidth}
-    \centering
-    \includegraphics[width=\linewidth]{Southern Rockies-forest-3-days.png}
-    \caption{Southern Rockies}
-    \label{fig:sr-auc}
-  \end{subfigure}%
-  \begin{subfigure}{.5\textwidth}
-    \centering
-    \includegraphics[width=\linewidth]{Middle Rockies-forest-3-days.png}
-    \caption{Middle Rockies}
-    \label{fig:mr-auc}
-  \end{subfigure}
-  \caption{AUC Curves for Southern and Middle Rockies Ecoregions, 3 day rolling window.}
+  \includegraphics[width=.9\textwidth]{Middle Rockies-forest-3-days.png}
+  \caption{AUC curve for Middle Rockies Ecoregions, 3 day rolling window.}
   \label{fig:auc}
-\end{figure}
-
-
+\end{figure
+}
 \begin{figure}[ht]
   \centering
   \includegraphics[height=.75\textheight]{Middle_Rockies/auc_vs_window.png}
@@ -153,14 +141,14 @@ While measures of atmospheric dryness performed similarly to one another, they d
 \begin{figure}
   \centering
   \includegraphics[width=.90\textwidth]{Middle_Rockies/wildfire_risk_projections_gye.png}
-  \caption{Ensemble projections of forest wildfire risk in the GYE.  RCP4.5 and RCP8.5 ensemble mean days above wildfire risk threshold (0.35 quantile of dryness) shown.  The 0.35 percentile of dryness (7 day rolling sum of deficit) corresponds to level of dryness at which approximately 10\% of fires burned at or below.  This is a relatively low level of fire risk leading to conservative projections.  Mean days for periods 2021-2040, 2041-2060, and 2081-2099 are shown.  Six points were assigned in a grid and values sampled for each interval shown, to show the changes in fire risk across time for the sampled locations (\textit{Not totally sure how I feel about this way of showing the change in fire risk for given locations, there are other ways I can visualize this but also I'm trying to keep the number of plots down.}).}
+  \caption{Ensemble projections of forest wildfire risk in the GYE (Forest cover type model).  RCP4.5 and RCP8.5 ensemble mean days above wildfire risk threshold (0.35 quantile of dryness) shown.  The 0.35 percentile of dryness (7 day rolling sum of deficit) corresponds to level of dryness at which approximately 10\% of fires burned at or below.  This is a relatively low level of fire risk leading to conservative projections.  Mean days for periods 2021-2040, 2041-2060, and 2081-2099 are shown.  Six points were assigned in a grid and values sampled for each interval shown, to show the changes in fire risk across time for the sampled locations (\textit{Not totally sure how I feel about this way of showing the change in fire risk for given locations, there are other ways I can visualize this but also I'm trying to keep the number of plots down.}).}
   \label{fig:projected-risk}
 \end{figure}
 
 \section{Discussion}
 \subsection{Historical Fire Season \& Frequency in the Middle Rockies Ecoregion}
 \subsection{Classifiers of Ignition}
-D and VPD were consistently the strongest classifiers of both forest and non-forest wildfire ignition for fires that burned at least 405 ha in the Middle Rockies ecoregion for almost all rolling window lengths examined \ref{fig:auc_window}.  These results are very similar to the wildfire ignition danger rating system for the Middle Rockies developed by \Citet{thomaWaterBalanceIndicator2020}, which found D and VPD were the strongest classifiers of ignition using 7 day rolling sums or means.  In our analysis of the Middle Rockies, D and VPD had similar performance with overall AUC values around 0.8-0.9 for all rolling window widths between 1 and 31 days, with confidence intervals overlapping.  pAUC values for VPD for forest ignitions were relatively constant across the range of rolling window widths, while pAUC$_{0.1}$ values decreased as rolling window increased.  Given the consequences of false negatives when classifying fire risk are more severe under the driest conditions, this gives some support to using rolling window widths somewhere between 3-10 days if D would be used to classify fire risk.
+D and VPD were consistently the strongest classifiers of both forest and non-forest wildfire ignition for fires that burned at least 405 ha in the Middle Rockies ecoregion for almost all rolling window lengths examined (Figure \ref{fig:auc_window}).  These results are very similar to the wildfire ignition danger rating system for the Middle Rockies developed by \Citet{thomaWaterBalanceIndicator2020}, which found D and VPD were the strongest classifiers of ignition using 7 day rolling sums or means.  In our analysis of the Middle Rockies, D and VPD had similar performance with overall AUC values around 0.8-0.9 for all rolling window widths between 1 and 31 days, with confidence intervals overlapping.  pAUC values for VPD for forest ignitions were relatively constant across the range of rolling window widths, while pAUC$_{0.1}$ values decreased as rolling window increased.  Given the consequences of false negatives when classifying fire risk are more severe under the driest conditions, this gives some support to using rolling window widths somewhere between 3-10 days if D would be used to classify fire risk.
 
 
 
@@ -186,5 +174,6 @@ title={References}
 
 %%% Local Variables:
 %%% mode: LaTeX
+%%% TeX-master: t
 %%% TeX-master: t
 %%% End:
