@@ -17,9 +17,6 @@ PANDOC_OPTIONS= --filter pandoc-crossref --bibliography=/home/steve/OneDrive/org
 
 PANDOC_DOCX_OPTIONS=
 
-PDFLATEX=/usr/bin/pdflatex
-BIBER=/usr/bin/biber
-
 %.docx : %.tex
 	$(PANDOC) $(PANDOC_OPTIONS) $(PANDOC_DOCX_OPTIONS) -o $@ $<
 
@@ -27,10 +24,7 @@ BIBER=/usr/bin/biber
 	$(PANDOC) $(PANDOC_OPTIONS) -o $@ $<
 
 %.pdf : %.tex
-	$(PDFLATEX) $<
-	$(BIBER) report
-	$(PDFLATEX) $<
-	$(PDFLATEX) $<
+	latexmk
 	latexmk -c
 
 # Targets and dependencies
