@@ -13,7 +13,7 @@ RM=/bin/rm
 
 PANDOC=/usr/bin/pandoc
 
-PANDOC_OPTIONS= --filter pandoc-crossref --bibliography=/home/steve/OneDrive/org/library.bib --citeproc --metadata link-citations=true --standalone
+PANDOC_OPTIONS= --filter pandoc-crossref --bibliography=/home/steve/OneDrive/org/library.bib --citeproc -M reference-section-title=References --metadata link-citations=true --standalone
 
 PANDOC_DOCX_OPTIONS=
 
