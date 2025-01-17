@@ -31,22 +31,14 @@ natbib=true
 
 \section{Introduction}
 
-As a result of climate change, wildfire frequency and severity has increased across the western United States \citep{rileyRelationshipLargeFire2013}.  Climate projections show continued increases in frequency and severity into the future [citation needed].
+The landscape of the western United States is shaped by wildfire, which alters the composition of plant communities, affects forage and shelter for wildlife, and threatens human life and communities.  Wildfire severity and frequency has increased in recent years as a result of anthropogenic climate change \citep{abatzoglouImpactAnthropogenicClimate2016}.  These increases have been linked to shifts in climate such as snow melting earlier \citep{tercekForecasts21stCentury2016} and increased summer temperatures leading to increased drought \citep{runningGlobalWarmingCausing2006}.  In addition to these direct links to climate, wildfire occurrence and severity also depends on factors such as fuel load and presence of ignition sources \citep{mckenzieClimateChangeEcohydrology2017}.
+\textit{I hope this paragraph isn't too similar to} \Citet{thomaWaterBalanceIndicator2020}
 
-Wildfire has important ecological consequences, such as altered forest structure, shifts in species composition, increased mortality, etc.
+Fire management in public lands is a critical concern for land managers.  An understanding of fire risk both in the short and long term is necessary for managing plant and animal species and implementing fire management activities such as prescribed burns and fire restrictions.  
 
-Fire management in national parks in a high priority and has consequences for the ecosystems managed by the parks as well as park visitors.
+\citet{thomaWaterBalanceIndicator2020} developed a wildfire ignition danger rating system for the Southern Rockies ecoregion \citep{omernikEcoregionsConterminousUnited1987} based on two-week rolling sums of climatic water deficit (CWD) or vapor pressure deficit (VPD), measures of atmospheric dryness. Since both measures had similar performance as classifiers of ignition, \citet{thomaWaterBalanceIndicator2020} recommend the use of CWD over VPD because of its ease of calculation and availability in projected climate data.  Wildfire ignition danger is determined by comparing the rolling sum of CWD on a given day to the historical distribution of rolling sums of CWD on days that a wildfire ignition occurred. As such, it is a system that compares CWD on a given day to conditions that were actually dry enough to burn. The purely climate-driven nature of this ignition danger rating system facilitates the creation of long-term projections of fire risk compared to other commonly used wildfire danger rating systems such as the National Fire Danger Rating System \citep{degrootChapter11Wildland2015}, which require inputs that are either not available or difficult to simulate for future time period such as wind speed and non-climatic inputs related to fuel load.  
 
-This analysis has several goals:
-
-\begin{enumerate}[label=(\roman*)]
-\item Implement the wildfire danger rating system for the Southern Rockies ecoregion developed by \citet{thomaWaterBalanceIndicator2020} using a different climate data source, gridMET, to facilitate the development of projections of fire risk.
-\item Extend this wildfire danger rating system to a new location, the Middle Rockies Ecoregion.
-\item Test whether the 14-day window of time used for rolling calculations in \citet{thomaWaterBalanceIndicator2020} is optimal or whether different lengths of time improve classification of fire risk.
-\item Develop short-term forecasts and long-term projections of fire risk for the Southern and Middle Rockies Ecoregions.
-\end{enumerate}
-  
-This work extends the wildfire ignition danger rating system implemented for the Southern Rockies level III ecoregion \citep{omernikEcoregionsConterminousUnited1987} from \citet{thomaWaterBalanceIndicator2020} to the Middle Rockies level III ecoregion.  
+The aim of this study is to implement the wildfire ignition danger rating system from \citet{thomaWaterBalanceIndicator2020} in a new ecoregion, the Middle Rockies ecoregion, and using a new climate data source, gridMET \citep{abatzoglouDevelopmentGriddedSurface2013}.  The use of gridMET facilitates the creation of long-term projections of fire risk using the MACA climate data source \citep{abatzoglouComparisonStatisticalDownscaling2012} because gridMET data were used to downscale MACA, allowing comparisons between the two data sources without bias correction \citep{tercekRobustProjectionsConsequences2023}.  Long-term projections of fire risk will be presented for the Greater Yellowstone Ecosystem (GYE), a subset of the Middle Rockies ecoregion.  
 
 *Discuss advantages of ROC/threshold classifier approach.  Things I didn't really get from reading Thoma 2020*
 
@@ -129,8 +121,8 @@ While measures of atmospheric dryness performed similarly to one another, they d
   \includegraphics[width=.9\textwidth]{Middle Rockies-forest-3-days.png}
   \caption{AUC curve for Middle Rockies Ecoregions, 3 day rolling window.}
   \label{fig:auc}
-\end{figure
-}
+\end{figure}
+
 \begin{figure}[ht]
   \centering
   \includegraphics[height=.75\textheight]{Middle_Rockies/auc_vs_window.png}
@@ -174,6 +166,7 @@ title={References}
 
 %%% Local Variables:
 %%% mode: LaTeX
+%%% TeX-master: t
 %%% TeX-master: t
 %%% TeX-master: t
 %%% End:
