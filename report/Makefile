@@ -35,4 +35,4 @@ all : $(EXPORTED_DOCS)
 
 clean:
 	- $(RM) $(EXPORTED_DOCS)
-	- latexmk -c
+	- latexmk -C
