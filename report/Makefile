@@ -5,9 +5,9 @@
 SOURCE_DOC = report.tex
 
 EXPORTED_DOCS=\
+ $(SOURCE_DOC:.tex=.pdf) \
  $(SOURCE_DOC:.tex=.html) \
- $(SOURCE_DOC:.tex=.docx) \
- $(SOURCE_DOC:.tex=.pdf)
+ $(SOURCE_DOC:.tex=.docx)
 
 RM=/bin/rm
 
