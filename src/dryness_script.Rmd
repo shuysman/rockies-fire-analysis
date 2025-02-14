@@ -33,24 +33,28 @@ settings <- tribble(
     "Southern Rockies", list(data_dir =  "/home/steve/OneDrive/northern-rockies-dryness/data",
                              out_dir = "/media/steve/storage/waterbalance/fire/out/ap23/",
 ##                                 "/home/steve/apr23_fire_points",
-                           master_csv =  "SR_fire_points_extracted.csv"
+                             master_csv =  "SR_fire_points_extracted.csv",
+                             mtbs_poly = "mtbs/Southern_rockies_fire_points.shp"
                            ),
     "Middle Rockies", list(data_dir =  "/home/steve/OneDrive/northern-rockies-dryness/data",
                            out_dir =  "/media/steve/storage/waterbalance/fire/out/",
-                           master_csv =  "MR_fire_points_extracted.csv"
+                           master_csv =  "MR_fire_points_extracted.csv",
+                           mtbs_poly = "mtbs/Middle_rockies_fire_points_v2.shp"
                            ),
 )
 
 
 settings <- settings %>% filter(region == region_name) 
 
-## Directory containing metadata file
+## Directory containing metadata files
 data_dir <- settings$params[[1]]$data_dir
 
 ## Directory with csv files from merge-csv.R
 out_dir <- settings$params[[1]]$out_dir
 
 master_csv <- settings$params[[1]]$master_csv
+mtbs_poly <- file.path(data_dir, settings$params[[1]]$mtbs_poly)
+
 ```
 
 ```{r opts, echo = FALSE}
@@ -98,16 +102,14 @@ master <- read_csv(file.path(data_dir, master_csv)) %>%
 
 # Map
 
-```{r map, fig.width = 8, fig.height = 8}
+```{r map, fig.width = 6, fig.height = 6}
 library(sp)
 library(sf)
 library(ggmap)
 
-coords <- data.frame(
-    x = master$x,
-    y = master$y
-)
-spdf <- SpatialPointsDataFrame(coords = coords, data = master)
+mtbs_poly_sfc <- st_read(mtbs_poly) %>%
+  right_join(select(master, Event_ID, maj_veg_cl),
+            by = "Event_ID")
 
 ecoregions <- st_transform(read_sf("/home/steve/OneDrive/northern-rockies-dryness/data/us_eco_l3/us_eco_l3.shp"), crs = 4326)
 ecoregion <- ecoregions %>% filter(US_L3NAME == region_name)
@@ -115,14 +117,17 @@ ecoregion <- ecoregions %>% filter(US_L3NAME == region_name)
 bbox_ecoregion <- st_bbox(ecoregion)
 bbox <- c(left = bbox_ecoregion$xmin[[1]], bottom = bbox_ecoregion$ymin[[1]], right = bbox_ecoregion$xmax[[1]], top = bbox_ecoregion$ymax[[1]])
 
-basemap <- get_stadiamap(bbox = bbox, zoom = 7, maptype = "stamen_terrain")
+basemap <- get_stadiamap(bbox = bbox, zoom = 7, maptype = "stamen_toner")
 
 ggmap(basemap) +
-    geom_sf(data = ecoregion, inherit.aes = FALSE, alpha = 0.15, fill = "red") +
-    geom_point(data = master, aes(x, y, color = maj_veg_cl)) +
-    labs(x = "Longitude",
-         y = "Latitude",
-         title = paste(region_name, "wildfires by cover type"))
+  geom_sf(data = ecoregion, inherit.aes = FALSE, alpha = 0.15, fill = "blue") +
+  geom_sf(data = mtbs_poly_sfc, aes(fill = maj_veg_cl), alpha = 0.75, inherit.aes = FALSE) +
+  scale_fill_manual(values = c("darkolivegreen4", "khaki")) +
+  labs(x = "Longitude",
+       y = "Latitude",
+       fill = "Cover",
+       title = paste(region_name, "wildfires by cover type")) +
+  theme_bw()
 
 summary_tbl <- master %>% group_by(maj_veg_cl) %>% summarise(n = n())
 knitr::kable(summary_tbl)
