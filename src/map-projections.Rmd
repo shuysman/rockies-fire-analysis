@@ -17,6 +17,8 @@ near <- 2021:2040
 mid <- 2041:2060
 long <- 2081:2099
 
+gye_boundary <- vect("/home/steve/OneDrive/whitebark/data/gyeboundary/GYE_boundary_dd.shp")
+
 for (quant in quants) {
   for (scenario in scenarios) {
     projections <- rast(list.files(path = projections_dir,
@@ -57,10 +59,11 @@ ens <- c(ens_rcp45, ens_rcp85)
 
 ggplot() +
   geom_spatraster(data = ens) +
+  geom_sf(data = gye_boundary, fill = NA, linetype = "dotted", lwd = 1.5, color = "royalblue") +
   stat_spatraster(data = ens, aes(label = after_stat(round(value,0))), geom = "label", maxcell = 4, size = 4, alpha = 0.5) +
   facet_wrap(~lyr, ncol = 3) +
-  scale_fill_viridis_c(name = "Mean Days", option = "inferno") +
-  theme_bw() +
-  ggtitle("Ensemble projections of wildfire risk in the GYE.  Quantile threshold = 0.35")
-ggsave("img/Middle_Rockies/wildfire_risk_projections_gye.png", width = 8, height = 8)
+  scale_fill_viridis_c(name = "Mean days above dryness threshold", option = "inferno") +
+  theme_bw()
+  #ggtitle("Ensemble projections of wildfire risk in the GYE.  Quantile threshold = 0.35")
+ggsave("img/Middle_Rockies/wildfire_risk_projections_gye.png", width = 10, height = 8)
 ```
