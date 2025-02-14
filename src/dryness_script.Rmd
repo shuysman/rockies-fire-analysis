@@ -103,30 +103,30 @@ master <- read_csv(file.path(data_dir, master_csv)) %>%
 # Map
 
 ```{r map, fig.width = 6, fig.height = 6}
-library(sp)
-library(sf)
-library(ggmap)
+library(terra)
+library(tidyterra)
+library(maptiles)
 
-mtbs_poly_sfc <- st_read(mtbs_poly) %>%
+mtbs_poly_vect <- vect(mtbs_poly) %>%
   right_join(select(master, Event_ID, maj_veg_cl),
-            by = "Event_ID")
+             by = "Event_ID") %>%
+  project(crs("epsg:3857"))
 
-ecoregions <- st_transform(read_sf("/home/steve/OneDrive/northern-rockies-dryness/data/us_eco_l3/us_eco_l3.shp"), crs = 4326)
+ecoregions <- vect("/home/steve/OneDrive/northern-rockies-dryness/data/us_eco_l3/us_eco_l3.shp") %>% project(crs("epsg:3857"))
 ecoregion <- ecoregions %>% filter(US_L3NAME == region_name)
 
-bbox_ecoregion <- st_bbox(ecoregion)
-bbox <- c(left = bbox_ecoregion$xmin[[1]], bottom = bbox_ecoregion$ymin[[1]], right = bbox_ecoregion$xmax[[1]], top = bbox_ecoregion$ymax[[1]])
+basemap <- get_tiles(buffer(ecoregion, 50000), crop = TRUE, zoom = 6, project = FALSE, provider = "CartoDB.Positron")
 
-basemap <- get_stadiamap(bbox = bbox, zoom = 7, maptype = "stamen_toner")
-
-ggmap(basemap) +
-  geom_sf(data = ecoregion, inherit.aes = FALSE, alpha = 0.15, fill = "blue") +
-  geom_sf(data = mtbs_poly_sfc, aes(fill = maj_veg_cl), alpha = 0.75, inherit.aes = FALSE) +
-  scale_fill_manual(values = c("darkolivegreen4", "khaki")) +
+ggplot() +
+  geom_spatraster_rgb(data = basemap, maxcell = Inf) + 
+  geom_sf(data = ecoregion, inherit.aes = FALSE, alpha = 0.25, fill = "gold") +
+  geom_sf(data = mtbs_poly_vect, aes(fill = maj_veg_cl), alpha = 0.75, inherit.aes = FALSE) +
+  ## scale_fill_manual(values = c("darkolivegreen4", "khaki")) +
+  ## scale_color_manual(values = c("darkolivegreen4", "khaki")) +
   labs(x = "Longitude",
        y = "Latitude",
-       fill = "Cover",
-       title = paste(region_name, "wildfires by cover type")) +
+       fill = "Cover") +
+#       title = paste(region_name, "wildfires by cover type")) +
   theme_bw()
 
 summary_tbl <- master %>% group_by(maj_veg_cl) %>% summarise(n = n())
@@ -371,7 +371,7 @@ ggcorr(wbdata_percentiles_forest, method = c("everything", "pearson"))
 We use the AUC (area under the curve) of the ROC (receiver operating characteristic) as a measure of goodness-of-fit to evaluate which predictors to use in the fire danger model.  
 
 
-```{r roc_analysis, fig.width = 6, fig.height = 6, include = TRUE, eval = T, message = T, echo = T}
+```{r roc_analysis, fig.width = 4, fig.height = 4, include = TRUE, eval = T, message = T, echo = T}
 
 make_roc <- function(options) {
   roll_window = as.numeric(options[1])
@@ -520,7 +520,7 @@ roc_table %>%
 ```
 
 ### Window vs AUC
-``` {r auc-window, fig.height = 12, fig.width = 8}
+``` {r auc-window, fig.height = 10, fig.width = 7}
 forest_auc_window <- roc_table %>%
   filter(maj_veg_cl == "forest") %>%
   ggplot() +
@@ -568,7 +568,7 @@ window_plot <- ggarrange(forest_auc_window, non_forest_auc_window,
                          common.legend = TRUE
                          )
 
-annotate_figure(window_plot, top = text_grob("Rolling window width vs. (p)AUC", size = 18))
+annotate_figure(window_plot)
 
 ```
 
@@ -596,22 +596,22 @@ lines(density(nonignitions_forest$VPD), col="blue")
 <!-- ``` -->
 
 Plots of wb percentile vs. area burned show weak relationships
-```{r wb-vs-area, fig.width = 8, fig.height = 8, eval = F, include = F}
+```{r wb-vs-area, fig.width = 5, fig.height = 5, eval = F, include = F}
 ggplot(ignitions_long, aes(x=value, y=Acres, colour=factor(maj_veg_cl))) +
     geom_point(size=3) +
     geom_smooth(method="lm", se=FALSE) +
     facet_wrap(~name, scales="fixed") +
-    labs(title = "", x = "Percentile at Week of Ignition", y = "Area burned (Acres)", color = NULL)+
+    labs(title = "", x = "Percentile at day of ignition", y = "Area burned (Acres)", color = NULL)+
     scale_color_manual(values=c("red","black")) +
     plot_theme
 ```
 
-```{r wb-vs-logarea, fig.width = 8, fig.height = 8, echo = F, message = F}
+```{r wb-vs-logarea, fig.width = 7, fig.height = 7, echo = F, message = F}
 ggplot(ignitions_long, aes(x=value, y=log(Acres), colour=factor(maj_veg_cl))) +
-    geom_point(size=3) +
+    geom_point(size=3, alpha = 0.10) +
     geom_smooth(method="lm", se=FALSE, formula = y ~ poly(x, 2)) +
     facet_wrap(~name, scales="fixed") +
-    labs(title = "", x = "Percentile at Week of Ignition", y = "Area burned (log Acres)", color = NULL)+
+    labs(title = "", x = "Percentile at day of ignition", y = "Area burned (log Acres)", color = NULL)+
     scale_color_manual(values=c("red","black")) +
     plot_theme
 ```
