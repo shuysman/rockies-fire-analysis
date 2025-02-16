@@ -103,7 +103,7 @@ master <- read_csv(file.path(data_dir, master_csv)) %>%
 
 # Map
 
-```{r map, fig.width = 6, fig.height = 6}
+```{r map, fig.width = 7, fig.height = 5}
 library(terra)
 library(tidyterra)
 library(maptiles)
@@ -124,11 +124,11 @@ ggplot() +
   geom_sf(data = mtbs_poly_vect, aes(fill = maj_veg_cl), alpha = 0.75, inherit.aes = FALSE) +
   ## scale_fill_manual(values = c("darkolivegreen4", "khaki")) +
   ## scale_color_manual(values = c("darkolivegreen4", "khaki")) +
-  labs(x = "Longitude",
-       y = "Latitude",
+  labs(#x = "Longitude",
+       #y = "Latitude",
        fill = "Cover") +
 #       title = paste(region_name, "wildfires by cover type")) +
-  theme_bw()
+  theme_bw() 
 
 summary_tbl <- master %>% group_by(maj_veg_cl) %>% summarise(n = n())
 knitr::kable(summary_tbl)
@@ -607,7 +607,7 @@ ggplot(ignitions_long, aes(x=value, y=Acres, colour=factor(maj_veg_cl))) +
     plot_theme
 ```
 
-```{r wb-vs-logarea, fig.width = 7, fig.height = 7, echo = F, message = F}
+```{r wb-vs-logarea, fig.width = 8, fig.height = 8, echo = F, message = F}
 ggplot(ignitions_long, aes(x=value, y=log(Acres), colour=factor(maj_veg_cl))) +
     geom_point(size=3, alpha = 0.10) +
     geom_smooth(method="lm", se=FALSE, formula = y ~ poly(x, 2)) +
