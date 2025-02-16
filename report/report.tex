@@ -109,7 +109,7 @@ Statistical analysis was performed using \texttt{R} version 4.4.2 \citep{rcorete
 
 \begin{figure}[ht]
   \includegraphics[width=.75\textwidth]{Middle_Rockies/map-1.png}
-  \caption{Historical wildfires larger than 1,000 acres occurring in the Middle Rockies Level III Ecoregion.  Centroid locations for MTBS fire polygons occurring on majority Forest and Non-Forest cover types are shown.  Sources: Stadia Maps (stadiamaps.com), Stamen Design (stamen.com). \textit{there is an issue with the R mapping library I used, which makes the vector objects appear misaligned with the basemap below.  This is not an issue with the data. I have a fix but have not implemented it for this code.  The locations shown are approximately correct as displayed here without the fix.}}
+  \caption{Historical wildfires larger than 1,000 acres occurring in the Middle Rockies Level III Ecoregion.  Centroid locations for MTBS fire polygons occurring on majority Forest and Non-Forest cover types are shown.  Basemap attribution: © OpenStreetMap contributors © CARTO}
   \label{fig:map}
 \end{figure}
 
@@ -147,7 +147,7 @@ The different rolling window lengths tested had similar performance as measured 
 \begin{figure}
   \centering
   \includegraphics[width=.95\textwidth]{Middle_Rockies/wildfire_risk_projections_gye.png}
-  \caption{Ensemble projections of forest wildfire risk in the GYE (Forest cover type model).  RCP4.5 and RCP8.5 ensemble mean days above wildfire risk threshold (0.35 quantile of dryness) shown.  The 0.35 percentile of dryness (7 day rolling sum of deficit) corresponds to level of dryness at which approximately 10\% of fires burned at or below.  This is a relatively low level of fire risk leading to conservative projections.  Mean days per year above the fire risk threshold for periods 2021-2040, 2041-2060, and 2081-2099 are shown by the color ramp.  Six points were assigned in a grid and values sampled for each interval shown, to show the changes in fire risk across time for the sampled locations.}
+  \caption{Ensemble projections of forest wildfire risk in the GYE (outlined with dotted blue line) using the model developed for Forest cover. The GYE is selected as a subset of the Middle Rockies Ecoregion to showcase wildfire risk projections using this method, as projections across the whole ecoregion were computationally intractable. Mean days above wildfire risk threshold (0.35 quantile of dryness) for RCP4.5 and RCP8.5 ensemble conditions shown. GCMs used to make ensemble average conditions are listed in Table \ref{table:gcms}. The 0.35 percentile of dryness (7 day rolling sum of deficit) corresponds to level of dryness at which approximately 10\% of fires burned at or below. Mean days per year above the fire risk threshold for periods 2021-2040, 2041-2060, and 2081-2099 are shown by the color ramp. Six points were assigned in a grid and values sampled for each interval shown, to show the changes in fire risk across time for the sampled locations.}
   \label{fig:projected-risk}
 \end{figure}
 
@@ -205,6 +205,7 @@ title={References}
 %%% gptel-model: deepseek-r1:8b
 %%% gptel--backend-name: "Ollama"
 %%% gptel--bounds: ((8551 . 8552))
+%%% TeX-master: t
 %%% TeX-master: t
 %%% TeX-master: t
 %%% End:
