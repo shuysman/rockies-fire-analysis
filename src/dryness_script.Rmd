@@ -7,6 +7,7 @@ output:
   html_document:
     toc: true
     toc_float: true
+    self_contained: false
 ---
 # Settings
 ```{r settings, include = T}
@@ -59,7 +60,7 @@ mtbs_poly <- file.path(data_dir, settings$params[[1]]$mtbs_poly)
 
 ```{r opts, echo = FALSE}
 knitr::opts_chunk$set(
-  fig.path = paste0(data_dir, "/img/", str_replace_all(region_name, " ", "_"), "/")
+  fig.path = paste0("/home/steve/OneDrive/northern-rockies-dryness/img/", str_replace_all(region_name, " ", "_"), "/")
 )
 ```
 
