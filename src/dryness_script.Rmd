@@ -392,13 +392,13 @@ make_roc <- function(options) {
   aet_roc<-roc(wbdata$fire,wbdata$AET, plot=FALSE)
   d_roc<-roc(wbdata$fire,wbdata$D, plot=FALSE)
 
-  png(filename = paste0("img/", region_name, "-", cover_class, "-", roll_window, "-days.png"), width = 800, height = 800)
+  png(filename = paste0("/home/steve/OneDrive/northern-rockies-dryness/img/", region_name, "-", cover_class, "-", roll_window, "-days.png"), width = 600, height = 600)
   par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
   ##                "s" - creates a square plotting region
   ##                "m" - (the default) creates a maximal plotting region
   par(bg="white")
   
-  plot.roc(col="pink",rd_roc, lwd=4, print.auc=FALSE, legacy.axes = TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage", main = paste(region_name, cover_class, roll_window, "days"))
+  plot.roc(col="pink",rd_roc, lwd=4, print.auc=FALSE, legacy.axes = TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage")#, main = paste(region_name, cover_class, roll_window, "days"))
   plot.roc(add=TRUE,col="dark blue",vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
   plot.roc(add=TRUE,col="green",t_roc, main="temp", lwd=4, print.auc=FALSE)
   plot.roc(add=TRUE,col="red",soil_roc, main="soil", lwd=4, print.auc=FALSE)
@@ -411,16 +411,15 @@ make_roc <- function(options) {
   legend(.35, .75, legend=c(paste("RD ",round(auc(rd_roc),2)),
                           #paste("SVP ",round(auc(svp_roc),2)),
                           paste("VPD ",round(auc(vpd_roc),2)),
-                          paste("TEMP ",round(auc(t_roc),2)),
+                          paste("T ",round(auc(t_roc),2)),
                           paste("SOIL ",round(auc(soil_roc),2)),
                           paste("GDD ",round(auc(gdd_roc),2)),
-                          paste("SWD",round(auc(awssm_roc),2)),
+                          paste("AWSSM",round(auc(awssm_roc),2)),
                           paste("RAIN ",round(auc(rain_roc),2)),
                           paste("AET ",round(auc(aet_roc),2)),
-                          paste("CWD ",round(auc(d_roc),2))),
+                          paste("D ",round(auc(d_roc),2))),
          bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
-         lty=1, lwd=4, text.font=2)#cex=0.9,
-  text(.01, .75,"AUC")
+         lty=1, lwd=4, text.font=2, cex=1.5)
   dev.off()
 
   auc0 <- function(var) {
