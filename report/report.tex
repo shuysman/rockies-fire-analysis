@@ -56,7 +56,7 @@ The aim of this study is to develop a wildfire ignition danger rating system for
 
 Historical wildfire occurrence data in the Middle Rockies ecoregion \citep{omernikEcoregionsConterminousUnited1987} from 1984 through 2020 were retrieved from the Monitoring Trends in Burn Severity (MTBS) database \citep{eidenshinkProjectMonitoringTrends2007}.  A total of 417 fires were included in the analysis, ranging from 1,003 to 563,527 acres in size.  
 
-Vegetation cover for each fire polygon was determined using the 2020 ``Existing Vegetation Type'' (EVT) data from the LANDFIRE database \citep{rollinsLANDFIRENationallyConsistent2009}.  For each fire polygon in the MTBS dataset, the statistics tool in QGIS was used to determined majority EVT by pixel count.  Each fire polygon was classified as ``forest'' cover type if the majority of pixels in the polygon were ``Tree'' type or ``non-forest'' cover type if the majority of pixels were ``Herb'', ``Sparse'', or ``Shrub''.  
+Vegetation cover for each fire polygon was determined using the 2020 ``Existing Vegetation Type'' (EVT) data from the LANDFIRE database \citep{rollinsLANDFIRENationallyConsistent2009}.  For each fire polygon in the MTBS dataset, the statistics tool in QGIS was used to determined majority EVT by pixel count.  Each fire polygon was classified as ``forest'' cover type if the majority of pixels in the polygon were ``Tree'' type or ``non-forest'' cover type if the majority of pixels were ``Herb'', ``Sparse'', or ``Shrub''.
 
 %% Using ignition dates provided by the MTBS data, wildfire seasons were defined for ``forest'' and ``non-forest'' cover types as the range of days of the year that fires historically have occurred on in those cover types within the ecoregion.
 
@@ -110,8 +110,8 @@ Statistical analysis was performed using \texttt{R} version 4.4.2 \citep{rcorete
 \subsection{Historical Fire Season \& Frequency in the Middle Rockies Ecoregion}
 
 \begin{figure}[ht]
-  \includegraphics[width=.75\textwidth]{Middle_Rockies/map-1.png}
-  \caption{Historical wildfires larger than 1,000 acres occurring in the Middle Rockies Level III Ecoregion.  Centroid locations for MTBS fire polygons occurring on majority Forest and Non-Forest cover types are shown.  Basemap attribution: © OpenStreetMap contributors © CARTO}
+  \includegraphics[width=.95\textwidth]{Middle_Rockies/map-1.png}
+  \caption{Historical wildfires larger than 1,000 acres occurring in the Middle Rockies Level III Ecoregion. MTBS fire polygons occurring on majority Forest and Non-Forest cover types are shown.  Basemap attribution: © OpenStreetMap contributors © CARTO}
   \label{fig:map}
 \end{figure}
 
@@ -132,12 +132,25 @@ Measures of atmospheric dryness (CWD, VPD, and RD) were consistently the best ov
 \subsection{Rolling Window}
 The different rolling window lengths tested had similar performance as measured by AUC and pAUC for most of the variables examined (Figure \ref{fig:auc_window}). AUC values for CWD and VPD were relatively constant across all rolling window lengths, however, pAUC values showed evidence of decreasing classification performance for these variables as rolling window length increases.  SOIL showed a decreasing pattern for all AUC and pAUC measures as rolling window length increased.  AET showed increasing classification performance as rolling window length increased.  
 
-\begin{figure}
+
+\begin{figure}[ht]
   \centering
-  \includegraphics[width=.9\textwidth]{Middle Rockies-forest-3-days.png}
-  \caption{AUC curve for Middle Rockies Ecoregions, 3 day rolling window. (\textit{note: fix label names in plot AWSSM = SWD, D = CWD})}
+  \begin{subfigure}{.5\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{Middle Rockies-non_forest-3-days.png}
+    \caption{Non-forest}
+    \label{fig:mr-nf-auc}
+  \end{subfigure}%
+  \begin{subfigure}{.5\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{Middle Rockies-forest-3-days.png}
+    \caption{Forest}
+    \label{fig:mr-f-auc}
+  \end{subfigure}
+  \caption{ROC Curves for forest and non-forest cover in the Middle Rockies Ecoregions, 3 day rolling window.}
   \label{fig:auc}
 \end{figure}
+
 
 \begin{figure}[ht]
   \centering
@@ -175,6 +188,8 @@ Some variables increase
 % Increasing: AET, RAIN
 % Decreasing: SOIL, D?
 % Constant: VPD, T, RD, GDD
+
+At the optimal rolling window width selected here, 3 days, overall performance of all classifiers tested besides RAIN as assessed by the AUC characteristic is higher for forest than for non-forest cover types (Figure \ref{fig:auc}). Performance under the driest conditions was also weaker for non-forest than forest cover, with lower pAUC values observed for the non-forest cover type (Figure \ref{fig:auc_window}, exact pAUC values are hard to read in this figure but they are lower for VPD and D at least, include table of all AUC/pAUC values for 3 day window?).  These results indicate that in the Middle Rockies, non-forest cover types are more fuel-limited and forest cover types are more moisture-limited in wildfire behavior \citep{meynEnvironmentalDriversLarge2007}. Wildfire behavior in moisture-limited ecosystems should be more sensitive to changes in atmospheric dryness because that is the force fundamentally limiting fire occurrence there since sufficient fuel is always present.  In grassland, shrubland, and other non-forest cover types, dryness alone is not sufficient to predict wildfire occurrence risk because the presence of sufficient fuel is not guaranteed.  However, performance of our classifiers in non-forest cover types was still strong, with D and VPD having AUC values of 0.92. Applications of this wildfire danger rating system should consider the inherently lower accuracy it will have in predicting occurrence in non-forested regions.  
 
 \subsection{Long-term projections of wildfire ignition danger}
 
