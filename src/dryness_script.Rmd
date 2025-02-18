@@ -934,6 +934,7 @@ $\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
 
 ``` {r forest-dens, fig.height = 7, fig.width = 7}
 wbdata_percentiles_forest %>%
+  filter(window == 3) %>%
   mutate(fire = factor(fire)) %>%
   pivot_longer(cols = c(RD, VPD, T, SOIL, AWSSM, RAIN, AET, D, GDD)) %>%
   ggplot() +
@@ -944,6 +945,7 @@ wbdata_percentiles_forest %>%
 
 ``` {r non_forest-dens, fig.height = 7, fig.width = 7}
 wbdata_percentiles_non_forest %>%
+  filter(window == 3) %>%
   mutate(fire = factor(fire)) %>%
   pivot_longer(cols = c(RD, VPD, T, SOIL, AWSSM, RAIN, AET, D, GDD)) %>%
   ggplot() +
