@@ -929,6 +929,31 @@ $\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
 ## Estimated Regression Formulas
 `r knitr::kable(regression_formulas)`
 
+
+# Dryness vs wildfire
+
+``` {r forest-dens, fig.height = 7, fig.width = 7}
+wbdata_percentiles_forest %>%
+  mutate(fire = factor(fire)) %>%
+  pivot_longer(cols = c(RD, VPD, T, SOIL, AWSSM, RAIN, AET, D, GDD)) %>%
+  ggplot() +
+  geom_density(aes(value, y = ..scaled.., fill = fire), alpha = 0.5) +
+  labs(x = "", y = "") +
+  facet_wrap(~name, scales = "free") 
+```
+
+``` {r non_forest-dens, fig.height = 7, fig.width = 7}
+wbdata_percentiles_non_forest %>%
+  mutate(fire = factor(fire)) %>%
+  pivot_longer(cols = c(RD, VPD, T, SOIL, AWSSM, RAIN, AET, D, GDD)) %>%
+  ggplot() +
+  geom_density(aes(value, y = ..scaled.., fill = fire), alpha = 0.5) +
+  labs(x = "", y = "") +
+  facet_wrap(~name, scales = "free") 
+```
+
+
+
 # R Version
 
 ```{r session-info}
