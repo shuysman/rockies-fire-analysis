@@ -520,44 +520,50 @@ roc_table %>%
 ```
 
 ### Window vs AUC
-``` {r auc-window, fig.height = 10, fig.width = 7}
+``` {r auc-window, fig.height = 8, fig.width = 6}
 forest_auc_window <- roc_table %>%
   filter(maj_veg_cl == "forest") %>%
   ggplot() +
   geom_line(aes(x = window, y = auc, color = var)) +
   geom_ribbon(aes(x = window, ymin = auclb, ymax = aucub, color = var), linetype = 2, alpha = 0.05) +
-  labs(title = "Forest AUC")
+  labs(title = "Forest AUC") +
+  theme_bw()
 
 non_forest_auc_window <- roc_table %>%
   filter(maj_veg_cl == "non_forest") %>%
   ggplot() +
   geom_line(aes(x = window, y = auc, color = var)) +
   geom_ribbon(aes(x = window, ymin = auclb, ymax = aucub, color = var), linetype = 2, alpha = 0.05) +
-  labs(title = "Non_forest AUC")
+  labs(title = "Non_forest AUC") +
+  theme_bw()
 
 forest_pauc20_window <- roc_table %>%
   filter(maj_veg_cl == "forest") %>%
   ggplot() +
   geom_line(aes(x = window, y = auc20, color = var)) +
-  labs(title = "Forest pAUC (.2)")
+  labs(title = "Forest pAUC (.2)") +
+  theme_bw()
 
 non_forest_pauc20_window <- roc_table %>%
   filter(maj_veg_cl == "non_forest") %>%
   ggplot() +
   geom_line(aes(x = window, y = auc20, color = var)) +
-  labs(title = "Non_forest pAUC (.2)")
+  labs(title = "Non_forest pAUC (.2)") +
+  theme_bw()
 
 forest_pauc10_window <- roc_table %>%
   filter(maj_veg_cl == "forest") %>%
   ggplot() +
   geom_line(aes(x = window, y = auc10, color = var)) +
-  labs(title = "Forest pAUC (.1)")
+  labs(title = "Forest pAUC (.1)") +
+  theme_bw()
 
 non_forest_pauc10_window <- roc_table %>%
   filter(maj_veg_cl == "non_forest") %>%
   ggplot() +
   geom_line(aes(x = window, y = auc10, color = var)) +
-  labs(title = "Non_forest pAUC (.1)")
+  labs(title = "Non_forest pAUC (.1)") +
+  theme_bw()
 
 window_plot <- ggarrange(forest_auc_window, non_forest_auc_window,
                          forest_pauc20_window, non_forest_pauc20_window,
