@@ -945,7 +945,7 @@ wbdata_percentiles_forest %>%
   pivot_longer(cols = c(RD, VPD, T, SOIL, AWSSM, RAIN, AET, D, GDD)) %>%
   ggplot() +
   geom_density(aes(value, y = ..scaled.., fill = fire), alpha = 0.5) +
-  labs(x = "", y = "") +
+  labs(x = "Percentile", y = "Density") +
   facet_wrap(~name, scales = "free") 
 ```
 
@@ -956,10 +956,9 @@ wbdata_percentiles_non_forest %>%
   pivot_longer(cols = c(RD, VPD, T, SOIL, AWSSM, RAIN, AET, D, GDD)) %>%
   ggplot() +
   geom_density(aes(value, y = ..scaled.., fill = fire), alpha = 0.5) +
-  labs(x = "", y = "") +
+  labs(x = "Percentile", y = "Density") +
   facet_wrap(~name, scales = "free") 
 ```
-
 
 
 # R Version
