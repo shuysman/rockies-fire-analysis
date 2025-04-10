@@ -67,3 +67,50 @@ ggplot() +
   #ggtitle("Ensemble projections of wildfire risk in the GYE.  Quantile threshold = 0.35")
 ggsave("img/Middle_Rockies/wildfire_risk_projections_gye.png", width = 10, height = 8)
 ```
+
+
+```{r landfire}
+landfire <- rast("/media/steve/storage/LANDFIRE/LF2020_EVT_220_CONUS/Tif/LC20_EVT_220.tif") %>%
+  crop(project(gye_boundary, .))
+
+##########
+# Get the EVT_LF levels (category table)
+evt_lf_levels <- levels(landfire$EVT_LF)[[1]]
+head(evt_lf_levels) # Look at the first few rows
+
+# To filter for a specific lifeform (e.g., Tree)
+# Method 1: Using the numerical values representing the Tree category
+tree_values <- evt_lf_levels$Value[evt_lf_levels$EVT_LF == "Tree"]
+tree_raster <- ifel(landfire$EVT_LF %in% tree_values, landfire$EVT_LF, NA)
+
+# Method 2: Creating a binary mask (1 for Tree, 0 for others)
+tree_mask <- ifel(landfire$EVT_LF %in% tree_values, 1, 0)
+
+# For multiple categories (e.g., Tree and Shrub)
+tree_shrub_values <- evt_lf_levels$Value[evt_lf_levels$EVT_LF %in% c("Tree", "Shrub")]
+tree_shrub_raster <- ifel(landfire$EVT_LF %in% tree_shrub_values, landfire$EVT_LF, NA)
+
+# To get only unique EVT_LF categories
+unique_categories <- unique(evt_lf_levels$EVT_LF)
+print(unique_categories)
+
+# To create a raster with all categories except certain ones (e.g., excluding Developed and Agriculture)
+exclude_values <- evt_lf_levels$Value[evt_lf_levels$EVT_LF %in% c("Developed", "Agriculture")]
+natural_veg_raster <- ifel(!(landfire$EVT_LF %in% exclude_values), landfire$EVT_LF, NA)
+
+# To create separate rasters for each lifeform type
+lifeform_types <- c("Tree", "Shrub", "Herb", "Sparse", "Barren", "Developed", "Agriculture", "Water", "Snow-Ice")
+lifeform_rasters <- list()
+
+for(lf in lifeform_types) {
+  lf_values <- evt_lf_levels$Value[evt_lf_levels$EVT_LF == lf]
+  if(length(lf_values) > 0) {
+    lifeform_rasters[[lf]] <- ifel(landfire$EVT_LF %in% lf_values, 1, 0)
+  }
+}
+
+# Visualize the results
+plot(tree_raster, main="Tree Areas")
+plot(tree_mask, main="Tree Mask (Binary)")
+plot(lifeform_rasters[["Tree"]], main="Tree Areas (Binary)")
+```
