@@ -244,15 +244,16 @@ wbdata <- vroom::vroom(files, id = "PATH", altrep_opts = FALSE)
 windows <- c(1, 3, 5, 7, 9, 11, 14, 17, 21, 31)
 
 wbdata <- wbdata %>%
-    mutate(Event_ID = str_extract(PATH, '(?<=/)[^/]*(?=\\.[^./]+$)')) %>% ## Extract file name without extension, use as Event_ID
-    group_by(Event_ID) %>%
-    mutate(RD = 100 - RH,
-           WHC = max(SOIL), ## Guestimate soil WHC from max soil moisture observed
-           SWD = WHC - SOIL) %>%
-    left_join(select(master,
-                     Event_ID, Ig_Date, maj_veg_cl, Acres),
-              by = "Event_ID") %>%
-    mutate(fire = if_else(Date == Ig_Date, 1, 0)) 
+  mutate(Event_ID = str_extract(PATH, '(?<=/)[^/]*(?=\\.[^./]+$)')) %>% ## Extract file name without extension, use as Event_ID
+  group_by(Event_ID) %>%
+  mutate(RD = 100 - RH,
+         WHC = max(SOIL), ## Guestimate soil WHC from max soil moisture observed
+         SWD = WHC - SOIL) %>%
+  left_join(select(master,
+                   Event_ID, Ig_Date, maj_veg_cl, Acres),
+            by = "Event_ID") %>%
+  mutate(fire = if_else(Date == Ig_Date, 1, 0))  %>%
+  rename(CWD = D)
 
 percentiles <- mclapply(windows,
                         FUN = \(window) {
