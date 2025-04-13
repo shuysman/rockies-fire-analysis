@@ -24,10 +24,11 @@ plot_theme <- theme_bw() +
     theme(text = element_text(size=16))
 
 #window <- 7
-vars <- c("RD", "VPD", "T", "SOIL", "AWSSM", "RAIN", "AET", "D", "GDD")
+vars <- c("RD", "VPD", "T", "SOIL", "SWD", "RAIN", "AET", "CWD", "GDD")
 
 ### Set region to use for analysis.  Settings for regions stored in 'settings' variable
 region_name <- "Middle Rockies"
+region_name_clean <- str_replace(region_name, " ", "_")
 
 settings <- tribble(
     ~region, ~params,
@@ -120,9 +121,9 @@ basemap <- get_tiles(buffer(ecoregion, 50000), crop = TRUE, zoom = 6, project = 
 
 ggplot() +
   geom_spatraster_rgb(data = basemap, maxcell = Inf) + 
-  geom_sf(data = ecoregion, inherit.aes = FALSE, alpha = 0.25, fill = "gold") +
+  geom_sf(data = ecoregion, inherit.aes = FALSE, alpha = 0.25, color = "midnightblue", lwd = .5) +
   geom_sf(data = mtbs_poly_vect, aes(fill = maj_veg_cl), alpha = 0.75, inherit.aes = FALSE) +
-  ## scale_fill_manual(values = c("darkolivegreen4", "khaki")) +
+  scale_fill_manual(values = c("darkolivegreen4", "goldenrod3")) +
   ## scale_color_manual(values = c("darkolivegreen4", "khaki")) +
   labs(#x = "Longitude",
        #y = "Latitude",
@@ -161,6 +162,20 @@ master %>% select(Ig_Date, Acres, maj_veg_cl) %>%
               min_date = min(Ig_Date)) %>%
     knitr::kable()
 
+
+```
+
+``` {r dens}
+ggplot(master) +
+  #geom_histogram(aes(y=..density..), colour="black", fill="white",binwidth=14) +
+  geom_density(aes(x = doy, color = maj_veg_cl), alpha=.2) +
+  scale_color_manual(values = c("darkolivegreen4", "goldenrod3")) +
+  geom_vline(data = filter(master, maj_veg_cl == "forest"), aes(xintercept=mean(doy)), color = "darkolivegreen4", linetype="dashed", size=1) +
+  geom_vline(data = filter(master, maj_veg_cl == "non_forest"), aes(xintercept=mean(doy)), color = "goldenrod3", linetype="dashed", size=1) +
+  theme_bw() +
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+  labs(title = "", x = "Day of year", y = "Fire frequency", color = NULL)+
+  theme(legend.text=element_text(size=16),legend.position="right")+guides(color=guide_legend(ncol=1))
 
 ```
 
@@ -233,7 +248,7 @@ wbdata <- wbdata %>%
     group_by(Event_ID) %>%
     mutate(RD = 100 - RH,
            WHC = max(SOIL), ## Guestimate soil WHC from max soil moisture observed
-           AWSSM = WHC - SOIL) %>%
+           SWD = WHC - SOIL) %>%
     left_join(select(master,
                      Event_ID, Ig_Date, maj_veg_cl, Acres),
               by = "Event_ID") %>%
@@ -282,6 +297,23 @@ ignitions_long <- rbind(ignitions_forest_long, ignitions_non_forest_long)
 ##  percentiles %>% filter(maj_veg_cl == "forest") %>% filter(Date == "2002-06-01") %>% filter(Event_ID == "CO3701010497920020601") %>% select(D, window)
 ```
 
+
+``` {r pct-issue, fig.width = 7, fig.height = 7}
+percentiles_test <- wbdata %>%
+  mutate(CWD = rollapply(CWD, 3, sum, by = 1, partial = FALSE, fill = NA, align = "right")) %>%
+  mutate(CWD_orig = percent_rank(CWD),
+         CWD_new = my_percent_rank(CWD)) %>%
+  select(CWDate, Event_ID, CWD_orig, CWD_new)
+
+ggplot(data = filter(percentiles_test, year(Date) == 2005, Event_ID == "WY4444510406019850727")) +
+  geom_line(aes(x = Date, y = CWD_orig, color = "Percentile")) +
+  geom_line(aes(x = Date, y = CWD_new, color = "Percentile(adj)")) +
+  theme_bw() +
+  labs(color = "Algorithm") +
+  ylab("Percentile")
+
+```
+
 # Data Visualizations
 
 ```{r dates-included}
@@ -319,7 +351,7 @@ wbdata_percentiles_forest %>%
 wbdata_percentiles_forest %>%
   filter(Event_ID == "UT3778610952720020601", year(Date) >= 1995, window == 7) %>%
   pivot_longer(vars) %>%
-  filter(name == "D") %>%
+  filter(name == "CWD") %>%
   ggplot(mapping = aes(x = Date, y = value, color = maj_veg_cl)) +
   geom_line() +
   #geom_vline(xintercept = as.numeric(ymd("2002-06-01"))) +
@@ -365,7 +397,7 @@ ggcorr(wbdata_percentiles_forest, method = c("everything", "pearson"))
 <!-- ```{r} -->
 <!-- wbdata %>% collect() -->
 
-<!-- acf(wbdata %>% filter(Event_ID == "CO3942710800419870707") %>% select(P:AWSSM, -Event_ID)) -->
+<!-- acf(wbdata %>% filter(Event_ID == "CO3942710800419870707") %>% select(P:SWD, -Event_ID)) -->
 <!-- ``` -->
 
 # ROC Analysis
@@ -387,39 +419,42 @@ make_roc <- function(options) {
   t_roc<-roc(wbdata$fire,wbdata$T, plot=FALSE)
   soil_roc<-roc(wbdata$fire,wbdata$SOIL, plot=FALSE)
   gdd_roc<-roc(wbdata$fire,wbdata$GDD, plot=FALSE)
-  awssm_roc<-roc(wbdata$fire,wbdata$AWSSM, plot=FALSE)
+  swd_roc<-roc(wbdata$fire,wbdata$SWD, plot=FALSE)
   rain_roc<-roc(wbdata$fire,wbdata$RAIN, plot=FALSE)
   aet_roc<-roc(wbdata$fire,wbdata$AET, plot=FALSE)
-  d_roc<-roc(wbdata$fire,wbdata$D, plot=FALSE)
+  d_roc<-roc(wbdata$fire,wbdata$CWD, plot=FALSE)
 
-  png(filename = paste0("/home/steve/OneDrive/northern-rockies-dryness/img/", region_name, "-", cover_class, "-", roll_window, "-days.png"), width = 600, height = 600)
+  png(filename = paste0("/home/steve/OneDrive/northern-rockies-dryness/img/", region_name_clean, "/", region_name, "-", cover_class, "-", roll_window, "-days.png"), width = 600, height = 600)
   par(pty = "s") ## pty sets the aspect ratio of the plot region. Two options:
   ##                "s" - creates a square plotting region
   ##                "m" - (the default) creates a maximal plotting region
   par(bg="white")
-  
-  plot.roc(col="pink",rd_roc, lwd=4, print.auc=FALSE, legacy.axes = TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage")#, main = paste(region_name, cover_class, roll_window, "days"))
-  plot.roc(add=TRUE,col="dark blue",vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
-  plot.roc(add=TRUE,col="green",t_roc, main="temp", lwd=4, print.auc=FALSE)
-  plot.roc(add=TRUE,col="red",soil_roc, main="soil", lwd=4, print.auc=FALSE)
-  plot.roc(add=TRUE,col="brown",gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
-  plot.roc(add=TRUE,col="magenta",awssm_roc, main="awssm", lwd=4, print.auc=FALSE)
-  plot.roc(add=TRUE,col="purple",rain_roc, main="rain", lwd=4, print.auc=FALSE)
-  plot.roc(add=TRUE,col="dark green",aet_roc, main="aet", lwd=4, print.auc=FALSE)
-  plot.roc(add=TRUE,col="orange",d_roc, main="d", lwd=4, print.auc=FALSE)
-  # Add a legend
-  legend(.35, .75, legend=c(paste("RD ",round(auc(rd_roc),2)),
-                          #paste("SVP ",round(auc(svp_roc),2)),
-                          paste("VPD ",round(auc(vpd_roc),2)),
-                          paste("T ",round(auc(t_roc),2)),
-                          paste("SOIL ",round(auc(soil_roc),2)),
-                          paste("GDD ",round(auc(gdd_roc),2)),
-                          paste("AWSSM",round(auc(awssm_roc),2)),
-                          paste("RAIN ",round(auc(rain_roc),2)),
-                          paste("AET ",round(auc(aet_roc),2)),
-                          paste("D ",round(auc(d_roc),2))),
-         bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
-         lty=1, lwd=4, text.font=2, cex=1.5)
+  par(cex.axis = 1.75)
+  par(cex.lab = 2)
+  print({
+    plot.roc(col="pink",rd_roc, lwd=4, print.auc=FALSE, legacy.axes = TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage")#, main = paste(region_name, cover_class, roll_window, "days"))
+    plot.roc(add=TRUE,col="dark blue",vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
+    plot.roc(add=TRUE,col="green",t_roc, main="temp", lwd=4, print.auc=FALSE)
+    plot.roc(add=TRUE,col="red",soil_roc, main="soil", lwd=4, print.auc=FALSE)
+    plot.roc(add=TRUE,col="brown",gdd_roc, main="gdd", lwd=4, print.auc=FALSE)
+    plot.roc(add=TRUE,col="magenta",swd_roc, main="swd", lwd=4, print.auc=FALSE)
+    plot.roc(add=TRUE,col="purple",rain_roc, main="rain", lwd=4, print.auc=FALSE)
+    plot.roc(add=TRUE,col="dark green",aet_roc, main="aet", lwd=4, print.auc=FALSE)
+    plot.roc(add=TRUE,col="orange",d_roc, main="d", lwd=4, print.auc=FALSE)
+    # Add a legend
+    legend(.35, .75, legend=c(paste("RD ",round(auc(rd_roc),2)),
+                              #paste("SVP ",round(auc(svp_roc),2)),
+                              paste("VPD ",round(auc(vpd_roc),2)),
+                              paste("T ",round(auc(t_roc),2)),
+                              paste("SOIL ",round(auc(soil_roc),2)),
+                              paste("GDD ",round(auc(gdd_roc),2)),
+                              paste("SWD",round(auc(swd_roc),2)),
+                              paste("RAIN ",round(auc(rain_roc),2)),
+                              paste("AET ",round(auc(aet_roc),2)),
+                              paste("CWD ",round(auc(d_roc),2))),
+           bty="n", col=c("pink", "dark blue","green","red","brown","magenta","purple","dark green","orange"), #col=c("black","blue", "dark blue","green","red","brown","magenta","purple","dark green","orange")
+           lty=1, lwd=4, text.font=2, cex=1.5)
+  })
   dev.off()
 
   auc0 <- function(var) {
@@ -581,8 +616,8 @@ annotate_figure(window_plot)
 
 demonstrate histogram of conditions associated with fire or no fire to see how much overlap there is.  This helps interpret the ROC
 ```{r density-hist, echo = F, message = F}
-plot(density(ignitions_forest$D), col="red")
-lines(density(nonignitions_forest$D), col="blue")
+plot(density(ignitions_forest$CWD), col="red")
+lines(density(nonignitions_forest$CWD), col="blue")
 
 plot(density(ignitions_forest$VPD), col="red")
 lines(density(nonignitions_forest$VPD), col="blue")
@@ -593,11 +628,11 @@ lines(density(nonignitions_forest$VPD), col="blue")
 <!-- library(hier.part) -->
 
 <!-- y<-as.vector(ignitions_non_forest[,"Acres"]) -->
-<!-- xcann<-subset(ignitions_non_forest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD")) -->
+<!-- xcann<-subset(ignitions_non_forest,select=c("T","SOIL","GDD","SWD","AET","CWD","RD","VPD")) -->
 <!-- hier.part(y,xcann,barplot=TRUE) -->
 
 <!-- y<-as.vector(ignitions_forest[,"Acres"]) -->
-<!-- xcann<-subset(ignitions_forest,select=c("T","SOIL","GDD","AWSSM","AET","D","RD","VPD")) -->
+<!-- xcann<-subset(ignitions_forest,select=c("T","SOIL","GDD","SWD","AET","CWD","RD","VPD")) -->
 <!-- hier.part(y,xcann,barplot=TRUE) -->
 <!-- ``` -->
 
@@ -634,7 +669,7 @@ ggplot(ignitions_long, aes(value, color = name)) +
 
 ```{r ecdf-cwd-vpd, fig.width = 8, fig.height = 4, echo = F} 
 ggplot(filter(ignitions_long,
-              name %in% c("VPD", "D")),
+              name %in% c("VPD", "CWD")),
        aes(value, color = name)) +
     stat_ecdf(pad = FALSE) +
     geom_hline(yintercept = .1) +
@@ -656,7 +691,7 @@ High fire danger is taken as the water balance percentile at or below which 40% 
 A regression line is fit to the ECDF curves to develop an equation that can be used to estimate proportion of historical fires for a given cover type burning at or below an input water balance variable percentile. 
 
 ```{r ecdf-regression-setup}
-selected_vars <- c("RD", "VPD", "D")
+selected_vars <- c("RD", "VPD", "CWD")
 
 regression_formulas <- tribble(
     ~cover, ~var, ~order, ~formula, ~r2
@@ -701,7 +736,7 @@ non_forest_data <- ignitions_non_forest %>% filter(window == ecdf_window)
 ### CWD Forest
 
 ```{r ecdf-regression3-d-forest}
-ecdf_fn <- ecdf(forest_data$D)
+ecdf_fn <- ecdf(forest_data$CWD)
 summary(ecdf_fn)
 
 estimated <- data.frame(
@@ -724,14 +759,31 @@ b1 <- lm$coefficients[[2]]
 b2 <- lm$coefficients[[3]]
 b3 <- lm$coefficients[[4]]
 
-plot(ecdf_fn)
-points(y = estimated$proportions, x = estimated$quants, col = "blue")
+threshold <- 0.35 ### Threshold deficit %ile for low fire danger
+
+plot(ecdf_fn,
+     xlim = c(0, 1),
+     ylim = c(0, 1),
+     main = "",
+     xlab = "Percentile deficit",
+     ylab = "Historical proportion of fires",
+     cex.lab = 1.25)
+#points(y = estimated$proportions, x = estimated$quants, col = "blue")
 points(y = estimated$predicted, x = estimated$quants, col = "red")
 curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
+### Add example of low fire danger rating
+y1 <- exp(predict(lm, list(quants = c(0.35))))
+segments(-.1, y1, threshold, y1)
+segments(threshold, y1, threshold, -.1)
+mtext(round(y1, 2), 2, at=y1, col=2, cex = 1.25)
+mtext(threshold, 1, at=threshold, col=2, cex = 1.25)
+
 ##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
 
+
+
 regression_formulas <- regression_formulas %>%
-    add_row(var = "D", order = "3", cover = "forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
+    add_row(var = "CWD", order = "3", cover = "forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
 ```
 
 Estimated function predicting proportion of historic fires burning in forests at or below given percentile of CWD on day of ignition:
@@ -781,7 +833,7 @@ $\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
 ### CWD Non-forest
 
 ```{r ecdf-regression3-d-non_forest}
-ecdf_fn <- ecdf(non_forest_data$D)
+ecdf_fn <- ecdf(non_forest_data$CWD)
 summary(ecdf_fn)
 
 estimated <- data.frame(
@@ -831,7 +883,7 @@ curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
 
 
 regression_formulas <- regression_formulas %>%
-    add_row(var = "D", order = "3", cover = "non_forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
+    add_row(var = "CWD", order = "3", cover = "non_forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
 ```
 
 Estimated function predicting proportion of historic fires burning in non_forests at or below given percentile of CWD on day of ignition:
@@ -938,24 +990,26 @@ $\begin{align*}f(x) = e^{`r b0` + `r b1`x + `r b2`x^2 + `r b3`x^3}\end{align*}$
 
 # Dryness vs wildfire
 
-``` {r forest-dens, fig.height = 7, fig.width = 7}
+``` {r forest-dens, fig.height = 6, fig.width = 6}
 wbdata_percentiles_forest %>%
   filter(window == 3) %>%
   mutate(fire = factor(fire)) %>%
-  pivot_longer(cols = c(RD, VPD, T, SOIL, AWSSM, RAIN, AET, D, GDD)) %>%
+  pivot_longer(cols = c(RD, VPD, T, SOIL, SWD, RAIN, AET, CWD, GDD)) %>%
   ggplot() +
   geom_density(aes(value, y = ..scaled.., fill = fire), alpha = 0.5) +
+  scale_fill_manual(values = c("blue","red")) +
   labs(x = "Percentile", y = "Density") +
   facet_wrap(~name, scales = "free") 
 ```
 
-``` {r non_forest-dens, fig.height = 7, fig.width = 7}
+``` {r non_forest-dens, fig.height = 6, fig.width = 6}
 wbdata_percentiles_non_forest %>%
   filter(window == 3) %>%
   mutate(fire = factor(fire)) %>%
-  pivot_longer(cols = c(RD, VPD, T, SOIL, AWSSM, RAIN, AET, D, GDD)) %>%
+  pivot_longer(cols = c(RD, VPD, T, SOIL, SWD, RAIN, AET, CWD, GDD)) %>%
   ggplot() +
   geom_density(aes(value, y = ..scaled.., fill = fire), alpha = 0.5) +
+  scale_fill_manual(values = c("blue","red")) +
   labs(x = "Percentile", y = "Density") +
   facet_wrap(~name, scales = "free") 
 ```
