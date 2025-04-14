@@ -102,6 +102,17 @@ master <- read_csv(file.path(data_dir, master_csv)) %>%
            doy = yday(Ig_Date))
 ```
 
+# MTBS Stats
+
+``` r
+master %>% group_by(maj_veg_cl) %>%
+  summarize(mean = mean(Acres),
+            min = min(Acres),
+            max = max(Acres),
+            sd = sd(Acres)) %>%
+  knitr::kable(format = "latex")
+```
+
 # Map
 
 ```{r map, fig.width = 7, fig.height = 5}
