@@ -414,14 +414,29 @@ ggcorr(coyote_data, method = c("pairwise", "pearson"), label = TRUE, digits = 3)
 #ggsave("./img/Middle_Rockies/coyotecor.png", height = 4, width = 4)
 
 coyote_data %>%
+  mutate(FM100 = FM100 / 10,
+         FM1000 = FM1000 / 10) %>%
   pivot_longer(cols = 2:6) %>%
   mutate(name = factor(name, levels = c("CWD", "FM100", "FM1000", "BI", "ERC"))) %>%
   filter(year(time) >= 1997, year(time) <= 2001) %>%
   ggplot() +
   geom_vline(xintercept = coyote_date, color = "red") +
   geom_line(aes(x = time, y = value)) +
-  facet_wrap(~name, scales = "free")
-#ggsave("./img/Middle_Rockies/coyote.png", height = 5, width = 12)
+  ylab("") +
+  xlab("Date") +
+  facet_wrap(~name, scales = "free",
+             strip.position = "left", 
+             labeller = labeller(name =
+                                   c("CWD" = "CWD (percentile)",
+                                     "FM100" = "FM100 (%)",
+                                     "FM1000" = "FM1000 (%)",
+                                     "BI" = "BI (unitless)",
+                                     "ERC" = "ERC (unitless)"))) +
+     theme(strip.background = element_blank(),
+           strip.placement = "outside",
+           strip.text = element_text(size = 12),
+           axis.title.x = element_text(size = 12))
+ggsave("./img/Middle_Rockies/coyote.png", height = 5, width = 12)
 ```
 
 <!-- ```{r} -->
