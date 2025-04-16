@@ -122,18 +122,6 @@ Historical wildfire occurrence data from 1984 through 2020 were retrieved from t
 
 Vegetation cover for each fire polygon was determined using the 2020 ``Existing Vegetation Type'' (EVT) from the LANDFIRE database \citep{rollinsLANDFIRENationallyConsistent2009}. For each fire polygon in the MTBS dataset, the statistics tool in QGIS was used to determine majority EVT by pixel count. Each fire polygon was classified as ``forest'' cover type if the majority of pixels in the polygon were ``Tree'' (n = 110) type or ``non-forest'' (n = 307) cover type if the majority of pixels were ``Herb'', ``Sparse'', or ``Shrub''. This method assumes that the cover type before the wildfire is the same as the EVT in the 2020 LANDFIRE database. Thus, in the present analysis, cover type was assumed unchanged before and after fire and no wildfire-driven conversion of cover type occurred \citep{coopWildfireDrivenForestConversion2020}.
 
-\begin{table}
-\begin{tabular}{l|r|r|r|r}
-\hline
-maj\_veg\_cl & mean & min & max & sd\\
-\hline
-forest & 20318.02 & 1028 & 563527 & 66241.76\\
-\hline
-non\_forest & 12648.91 & 1003 & 303427 & 29308.65\\
-\hline
-\end{tabular}
-\caption{
-
 %% Using ignition dates provided by the MTBS data, wildfire seasons were defined for ``forest'' and ``non-forest'' cover types as the range of days of the year that fires historically have occurred on in those cover types within the ecoregion.
 
 We competed climate and water balance variables representing energy and moisture as predictors of wildfire ignition. For each fire polygon, a centroid was determined using the ``Pole of Inaccessibility'' method in QGIS \citep{QGIS_software} in order to ensure that the centroid point was inside the burned polygon. Daily time series for historical climate variables representing measures of heat and moisture from 1979 through 2020 (Average temperature (T, \textit{\degree C}), average relative humidity (RH, \textit{\%}), and vapor pressure deficit (VPD, \textit{Pa})) were retrieved from the gridMET gridded climate dataset \citep{abatzoglouDevelopmentGriddedSurface2013} for each centroid point determined for each historical wildfire. The complement of RH (100 - RH) was used to determine Relative Dryness RD, to allow direct comparison of magnitude with other dryness indicators. Historical water balance variables Actual Evapotranspiration (AET, mm), Climatic Water Deficit (CWD, \textit{mm}), Soil Moisture (SOIL, \textit{mm}), and Rain (RAIN, \textit{mm}) were obtained from the National Park Service gridded water balance product \citep{tercekHistoricalChangesPlant2021}, which uses gridMET climate data as inputs. Soil Water Holding Capacity (WHC, \textit{mm}) for the top 100 cm of the soil profile were obtained from the US Natural Resources Conservation Service 
@@ -174,6 +162,11 @@ We determined the best classifier of ignition as the variable and rolling window
   \caption{Receiver Operating Characteristic (ROC) curve showing true and false positive rates. Performance of a random classifier is shown by the diagonal line. Three example classifiers are showing in blue, green, and orange. The best possible classification performance is represented by the point in the upper left of the plot, which has 100\% sensitivity (no false negatives) and 100\% specificity (no false positives). \\ Image Source: cmglee, MartinThoma, CC BY-SA 4.0 $<$https://creativecommons.org/licenses/by-sa/4.0$>$, via Wikimedia Commons}
     \label{fig:roc}
 \end{figure}
+
+\subsection{Comparison with other indices of fire danger}
+
+We compared our best performing classifier of ignition (three day rolling sum of CWD) to indices included in the NFDRS: 100-hr fuels (FM100), 1000-hr fuels (FM1000), burning index (BI), and energy release component (ERC).  FM100 and FM1000 are inputs to the IC of the FDRS, and should be most analogous to our model of wildfire ignitions \citep{jollyModernizingUSNational2024}. While the IC incorporates other measures besides fuel moisture, such as wind speed and the spread component, gridded values for IC that could be retrieved for a point of interest could not be located so the readily-available FM100 and FM1000 grids were used as a proxy for the IC. Daily time series from 1979-01-01 to 2021-12-31 for these indices calculated using gridMET were retrieved from Northwest Knowledge Network \citep{northwestknowledgenetworREACCHMETDATAGRIDMET2025} for the centroid polygon (Latitude 46.09374 
+, Longitude -113.8503) for the Valley Complex (Coyote) fire (MTBS ID: \texttt{MT4609711384420000731}) which ignited on 2000-07-31. This fire was selected because its burned area (8336.9 ha) is approximately the mean burned area for forest cover in the Middle Rockies in the MTBS data base (8222.4 ha). Pairwise correlations were calculated for all variables using the \texttt{corrplot} function from the R GGally package \citep{schloerkeGGallyExtensionGgplot22024}.
 
 \subsection{Wildfire danger rating}
 
@@ -217,13 +210,26 @@ Statistical analysis was performed using \texttt{R} version 4.4.2 \citep{rcorete
 
 \subsection{Historical Fire Season \& Frequency in the Middle Rockies Ecoregion}
 
-Out of the 417 historical wildfires greater than 405 hectares (1,000 acres) in size in the Middle Rockies Ecoregion from 1984 through 2020, 110 wildfires occurred in forest and 307 wildfires occurred in non-forest cover types (Figure \ref{fig:map}). Forest wildfires occurred between 1985-07-12 and 2020-10-03. Non-forest wildfires occurred between 1984-08-19 and 2020-10-30. The largest forest wildfire was 563,527 acres and the largest non-forest wildfire was 303,427 acres.
+Out of the 417 historical wildfires greater than 405 hectares (1,000 acres) in size in the Middle Rockies Ecoregion from 1984 through 2020, 110 wildfires occurred in forest and 307 wildfires occurred in non-forest cover types (Figure \ref{fig:map}). Forest wildfires occurred between 1985-07-12 and 2020-10-03. Non-forest wildfires occurred between 1984-08-19 and 2020-10-30. The largest forest wildfire was 563,527 acres and the largest non-forest wildfire was 303,427 acres. The mean forest wildfire size was 8,222.4 ha and the mean non-forest wildfire size was 5,118.8 ha (Table \ref{tab:mtbs-stats})
 
 \begin{figure}[htbp]
   \includegraphics[width=.95\textwidth]{map-1.png}
   \caption{MTBS wildfire polygons larger than 405 hectares occurring on forest and non-forest cover types in the Middle Rockies Level III Ecoregion (dark blue outline) between 1984 and 2020. Basemap attribution: © OpenStreetMap contributors © CARTO}
   \label{fig:map}
 \end{figure}
+
+\begin{table}
+  \centering
+  \begin{tabular}{lrrrrr}
+    \hline
+    Cover      & n   & Mean area (ha) & Min area (ha) & Max Area (ha) & SD (ha) \\
+    \hline
+    Forest     & 110 & 8222.4         & 416.0         & 228051.3      & 26807.1 \\
+    Non-forest & 307 & 5118.8         & 405.9         & 122792.6      & 11860.8  \\
+  \end{tabular}
+  \caption{Statistics for wildfires classified as forest and non-forest in the MTBS database.}
+  \label{tab:mtbs-stats}
+\end{table}
 
 Wildfires in forest-cover types occurred between day or year (DOY) 93 and 289. Non-forest wildfires occurred between DOY 6 and 350. Fire ignition DOYs had similar seasonal distributions in both forest and non-forest vegetation types (Figure \ref{fig:fire-dens}). The mean DOY of ignition was 217.6 for forest and 215.4 for non-forest wildfires, with no evidence of difference in mean ignition DOY between the groups (Welch Two Sample \textit{t} test: \textit{t}\textsubscript{264.83}=0.60794, \textit{P}=0.5437).
 
@@ -261,7 +267,6 @@ Measures of atmospheric dryness (CWD, VPD, and RD) were consistently the best ov
 
 The different rolling window widths tested had similar performance as measured by AUC and pAUC for most of the variables examined (Figure \ref{fig:auc_window}). AUC values for CWD and VPD were relatively constant across all rolling window widths, however, pAUC values showed evidence of decreasing classification performance for these variables as rolling window length increased. SOIL showed a decreasing pattern for all AUC and pAUC measures as rolling window length increased. AET showed increasing classification performance as rolling window length increased.  
 
-
 \begin{figure}[htbp]
   \centering
   \begin{subfigure}{.5\textwidth}
@@ -285,6 +290,25 @@ The different rolling window widths tested had similar performance as measured b
   \includegraphics[scale=0.7]{auc-window-1.png}
   \caption{AUC, \pauc{0.2}, and \pauc{0.1} values for different window widths used for calculations of rolling sums and means of variables in forest or non-forest cover types. 95\% Confidence Intervals are shown for overall AUC values. Confidence Intervals for pAUC values were not calculated due to computational constraints because they require a lengthy bootstrapping process.}
   \label{fig:auc_window}
+\end{figure}
+
+\subsection{Comparison with other indices of fire danger}
+
+The percentile of three day rolling sum of CWD for the Valley Complex (Coyote) fire showed strong positive correlation with ERC (corr = 0.8), weak positive correlation with BI (corr = 0.6), and strong negative correlations with FM100 (corr = -0.7) and FM 1000 (corr = -0.7) from 1979-01-01 to 2021-12-31 (Figure \ref{fig:coyote-corrplot}). The timing of ignition for the fire coincided with the peak maximum rolling sum of CWD and minimum FM100 for the year, and occurred slightly before the peak maximum BI, maximum ERC, and minimum FM1000 (Figure \ref{fig:coyote-fm}).
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width = 0.5\textwidth]{coyote-corr-1.png}
+  \caption{Pairwise Pearson correlations between percentile of three day rolling sum of CWD and NFDRS indices for the Valley Complex (Coyote) fire.}
+  \label{fig:coyote-corrplot}
+\end{figure}
+
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics{coyote-fm-1.png}
+  \caption{Daily time series of percentile of three day rolling sum of CWD and NFDRS indices for the Valley Complex (Coyote) wildfire. Red vertical line shows day of ignition (2000-07-31).}
+  \label{fig:coyote-fm}
 \end{figure}
 
 \subsection{Wildfire ignition danger rating}
@@ -360,6 +384,14 @@ At the optimal rolling window width identified here (3 days) overall performance
 
 Consequences of misclassification of cover type at time of ignition. Fire driven cover change likely occurs in one direction, forest to non-forest due to aridification of the American West and the climate ratchet which controls the windows of time suitable for regeneration \citep{jacksonEcologyRatchetEvents2009}. The likelihood of misclassification puts fires that ignited in forests into non-forest categories which has the effect of the pulling down the likelihood of ignition in non-forests in the low deficit range and removing data points from forest ignitions, increasing uncertainty (refer readers to ecdf figure for non/forest fires). Unfortunately, this results in a fire danger rating in non-forest ratings under low-deficit conditions that is likely underestimating fire danger. Assuming every ignition we classified as non-forest was actually forest at time of ignition and experienced cover change, the maximum underestimation of fire danger would be 10\%, evident by visual inspection of the difference of proportion of historical wildfires occurring a 50th percentile of deficit or less between forest and non-forest cover types (ecdf figure reference). 
 
+\subsection{Comparison with other indices of fire danger}
+
+Ignition of the Valley Complex (Coyote) fire occurred around peak values for our top performing classifier of ignition, percentile of three day rolling sum of deficit, and selected indices from the NFDRS (FM10, FM100, BI, and ERC) are comparable (Figure \ref{fig:coyote-fm}). For this particular historical wildfire, peak three day rolling sum of deficit appears to most exactly correspond to day of ignition, while the peak values NFDRS indices besides FM100 are often slightly before or after the day of ignition. This indicates that FM100 most accurately captures the fuel moisture dynamics that were relevant to the Valley Complex fire, instead of the larger fuels driving FM1000. It is possible that in the Middle Rockies ecoregion in general, small fuels are the ignition source for fires even though larger, woody fuels are present.
+
+The fact that the correlations between CWD and the NFDRS indices ranged from 0.6 to 0.8 (absolute value) indicates that our classifier captures different aspects of dryness as it relates to fire risk than these other indices. This is expected because CWD integrates simultaneous timing of energy and moisture as well as soil moisture reserves while the fuel moisture metrics model moisture availability in dead fuel, ERC models composite fuel moisture of dead and live fuels, and BI is an index of potential burn severity and effort needed to contain a single fire in a particular fuel type. The stronger correlations with BI and indicate that our percentiles of three day rolling sums of CWD should also perform well as an indicator of burned area and fire severity, however, these aspects of wildfire behavior were not examined here. 
+
+The results of this comparison indicate that our simple model of fire ignitions compares favorably to the widely-used NFDRS. Our model based off of a simple water balance measure that can be calculated from readily available weather or climate data coincided with the exact timing of ignition in this example wildfire. Modeling fire risk with the NFDRS requires more complex inputs, which sometimes are manually input or themselves modeled values, and the individual indices tested here did not appear 
+
 \subsection{Long-term projections of wildfire ignition danger}
 
 Climate change is leading to longer and more intense fire seasons \citep{abatzoglouImpactAnthropogenicClimate2016,abatzoglouProjectedIncreasesWestern2021,littellReviewRelationshipsDrought2016,jollyClimateinducedVariationsGlobal2015}. This applies to the GYE specifically, where \citet{westerlingContinuedWarmingCould2011} found large increases in burned area and decreases in fire return interval across the ecoregion. Our projections of wildfire ignition risk in forests in the GYE support this claim, with projections showing increasing days at risk across the region by the end of the century, with larger increases in RCP8.5 than RCP4.5 ensemble projections.
@@ -387,6 +419,7 @@ title={References}
 
 %%% Local Variables:
 %%% mode: LaTeX
+%%% TeX-master: t
 %%% TeX-master: t
 %%% TeX-master: t
 %%% End:
