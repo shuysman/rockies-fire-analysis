@@ -390,7 +390,7 @@ Valley Complex (Coyote)
 46.09374 
 -113.8503
 Burned at Deficit percentile 0.8
-``` {r fm, fig.height = 5, fig.width = 8}
+``` {r coyote-corr, fig.height = 4, fig.width = 4}
 coyote_dir <- file.path("./data/coyote/")
 
 coyote_meta <- master %>% filter(Event_ID == "MT4609711384420000731")
@@ -412,7 +412,9 @@ coyote_data <- bind_cols(
 
 ggcorr(coyote_data, method = c("pairwise", "pearson"), label = TRUE, digits = 3)
 #ggsave("./img/Middle_Rockies/coyotecor.png", height = 4, width = 4)
+```
 
+``` {r coyote-fm, fig.height = 5, fig.width = 12}
 coyote_data %>%
   mutate(FM100 = FM100 / 10,
          FM1000 = FM1000 / 10) %>%
