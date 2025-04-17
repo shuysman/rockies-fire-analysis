@@ -928,31 +928,24 @@ b1 <- lm$coefficients[[2]]
 b2 <- lm$coefficients[[3]]
 b3 <- lm$coefficients[[4]]
 
-plot(ecdf_fn, xlab = "Percentile of Deficit", ylab = "Proportion of historical wildfires", main = "eCDF Non_Forest Deficit, with ignition danger ratings", xlim = c(0,1))
-points(y = estimated$proportions, x = estimated$quants, col = "blue")
+threshold <- 0.35 ### Threshold deficit %ile for low fire danger
+
+plot(ecdf_fn,
+     xlim = c(0, 1),
+     ylim = c(0, 1),
+     main = "",
+     xlab = "Percentile deficit",
+     ylab = "Historical proportion of fires",
+     cex.lab = 1.25)
+#points(y = estimated$proportions, x = estimated$quants, col = "blue")
 points(y = estimated$predicted, x = estimated$quants, col = "red")
 curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
-##curve(exp(predict(lm, newdata = data.frame(quants = x))), add = TRUE, col = "red")
-## low_thresh <- .1
-## med_thresh <- .4
-## high_thresh <- .7
-## x_low <- .46
-## segments(-5, low_thresh, x1 = x_low, y1 = low_thresh) ## Low Fire Danger horiz
-## text(x = .15, y = low_thresh + 0.02, label = "Low Fire Danger")
-## segments(x_low, -5, x1 = x_low, y1 = low_thresh) ## Low Fire Danger vert
-## text(x = x_low + .025, y = -.02, label = x_low)
-## x_med <- .87
-## segments(-5, med_thresh, x1 = x_med, y1 = med_thresh) ## High Fire Danger horiz
-## text(x = .15, y = med_thresh + 0.02, label = "Medium Fire Danger")
-## segments(x_med, -5, x1 = x_med, y1 = med_thresh) ## High Fire Danger vert
-## text(x = x_med + .025, y = -.02, label = x_med)
-## x_high <- .96
-## segments(-5, high_thresh, x1 = x_high, y1 = high_thresh) ## High Fire Danger horiz
-## text(x = .15, y = high_thresh + 0.02, label = "High Fire Danger")
-## segments(x_med, -5, x1 = x_high, y1 = high_thresh) ## High Fire Danger vert
-## text(x = x_high + .025, y = -.02, label = x_high)
-
-
+### Add example of low fire danger rating
+y1 <- exp(predict(lm, list(quants = c(0.35))))
+segments(-.1, y1, threshold, y1)
+segments(threshold, y1, threshold, -.1)
+mtext(round(y1, 2), 2, at=y1, col=2, cex = 1.25)
+mtext(threshold, 1, at=threshold, col=2, cex = 1.25)
 
 regression_formulas <- regression_formulas %>%
     add_row(var = "CWD", order = "3", cover = "non_forest", formula = regression3_formula(b0, b1, b2, b3), r2 = r2)
