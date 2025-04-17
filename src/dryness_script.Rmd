@@ -928,7 +928,7 @@ b1 <- lm$coefficients[[2]]
 b2 <- lm$coefficients[[3]]
 b3 <- lm$coefficients[[4]]
 
-threshold <- 0.35 ### Threshold deficit %ile for low fire danger
+threshold <- 0.235 ### Threshold deficit %ile for low fire danger
 
 plot(ecdf_fn,
      xlim = c(0, 1),
@@ -941,7 +941,7 @@ plot(ecdf_fn,
 points(y = estimated$predicted, x = estimated$quants, col = "red")
 curve(exp(b0 + b1*x + b2*(x^2) + b3*(x^3)), add = TRUE, col = "red")
 ### Add example of low fire danger rating
-y1 <- exp(predict(lm, list(quants = c(0.35))))
+y1 <- exp(predict(lm, list(quants = c(threshold))))
 segments(-.1, y1, threshold, y1)
 segments(threshold, y1, threshold, -.1)
 mtext(round(y1, 2), 2, at=y1, col=2, cex = 1.25)
