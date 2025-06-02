@@ -504,7 +504,7 @@ make_roc <- function(options) {
   par(cex.axis = 1.75)
   par(cex.lab = 2)
   print({
-    plot.roc(col="pink",rd_roc, lwd=4, print.auc=FALSE, legacy.axes = TRUE, xlab="False Positive Percentage", ylab="True Postive Percentage")#, main = paste(region_name, cover_class, roll_window, "days"))
+    plot.roc(col="pink",rd_roc, lwd=4, print.auc=FALSE, legacy.axes = TRUE, xlab="False Positive Percentage", ylab="True Positive Percentage")#, main = paste(region_name, cover_class, roll_window, "days"))
     plot.roc(add=TRUE,col="dark blue",vpd_roc, main="vpd", lwd=4, print.auc=FALSE)
     plot.roc(add=TRUE,col="green",t_roc, main="temp", lwd=4, print.auc=FALSE)
     plot.roc(add=TRUE,col="red",soil_roc, main="soil", lwd=4, print.auc=FALSE)
