@@ -13,7 +13,7 @@ projections_dir <- file.path("/media/smithers/shuysman/data/out/fire/")
 
 test_file <- file.path(projections_dir, "Annual_sum_days_above_fire_risk_threshold_0.35_inmcm4_rcp85.nc")
 
-near <- 2021:2040
+near <- 2023:2040
 mid <- 2041:2060
 long <- 2081:2099
 
@@ -48,12 +48,12 @@ for (quant in quants) {
 ens_rcp45 <- rast(list.files(path = projections_dir,
                              pattern = "Ensemble_mean_days_above_fire_risk_0.35_rcp45.*.nc",
                              full.names = TRUE))
-names(ens_rcp45) <- c("RCP4.5 2021-2040", "RCP4.5 2041-2060", "RCP4.5 2081-2099")
+names(ens_rcp45) <- c("RCP4.5 2023-2040", "RCP4.5 2041-2060", "RCP4.5 2081-2099")
 
 ens_rcp85 <- rast(list.files(path = projections_dir,
                              pattern = "Ensemble_mean_days_above_fire_risk_0.35_rcp85.*.nc",
                              full.names = TRUE))
-names(ens_rcp85) <- c("RCP8.5 2021-2040", "RCP8.5 2041-2060", "RCP8.5 2081-2099")
+names(ens_rcp85) <- c("RCP8.5 2023-2040", "RCP8.5 2041-2060", "RCP8.5 2081-2099")
 
 ens <- c(ens_rcp45, ens_rcp85)
 
